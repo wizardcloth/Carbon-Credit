@@ -2,10 +2,15 @@ import { Leaf, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Navbar() {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-
+  function handleSignIn(){
+    navigate("/Signin");
+  }
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-white/70 backdrop-blur-md shadow-md">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -20,7 +25,7 @@ export default function Navbar() {
           <Link to="/" className="hover:text-green-600 transition">Home</Link>
           <a href="#" className="hover:text-green-600 transition">About</a>
           <Link to="#" className="hover:text-green-600 transition">Contact</Link>
-          <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl hover:cursor-pointer">
+          <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl hover:cursor-pointer" onClick={() => handleSignIn()}>
             Signup
           </Button>
         </div>
@@ -42,7 +47,7 @@ export default function Navbar() {
           <Link to="/" className="hover:text-green-600 transition">Home</Link>
           <Link to="#" className="hover:text-green-600 transition">About</Link>
           <Link to="#" className="hover:text-green-600 transition">Contact</Link>
-          <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl">
+          <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl" onClick={() => handleSignIn()}>
             Signup
           </Button>
         </div>

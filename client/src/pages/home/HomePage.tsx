@@ -10,8 +10,10 @@ import {
 import { TrendingUp, Shield, Globe, Users, Award, Zap } from "lucide-react";
 import NavBar from "@/components/Navbar/navbar";
 import "../../App.css";
+import { useNavigate } from "react-router-dom";
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     const handleScroll = () => {
       document
@@ -35,8 +37,8 @@ const HomePage: React.FC = () => {
       </div>
       <div className="App">
         <div className="parallax-container">
-          <div className="parallax-layer" data-speed="0.4" id="base"></div>
-          <div className="parallax-layer" data-speed="0.2" id="layer1"></div>
+          <div className="parallax-layer" data-speed="0.3" id="base"></div>
+          <div className="parallax-layer" data-speed="0.4" id="layer1"></div>
           <div className="parallax-layer" data-speed="0.1" id="layer2"></div>
           <h3 className="block sm:hidden hero-text title font-bold">
             Empowering farmer to Earn Via Carbon Credits
@@ -48,7 +50,7 @@ const HomePage: React.FC = () => {
             <h2 style={{fontFamily:"arial",color:"white",textShadow:"none",fontWeight:"600"}} className="hidden sm:block hero-text subtitle">
               via carbon credit
             </h2>
-            <button style={{ color: "white" ,fontFamily:"arial",fontSize:"20px",textShadow:"none",fontWeight:"500"}} className="bg-emerald-500 hover:bg-emerald-600 p-2 w-36 rounded-xl hero-text subtitle absolute mt-20 hover:cursor-pointer hover:underline underline-offset-3 hidden md:block">Join Now</button>
+            <button onClick={()=>{navigate("/Signin")}} style={{ color: "white" ,fontFamily:"arial",fontSize:"20px",textShadow:"none",fontWeight:"500"}} className="bg-emerald-500 hover:bg-emerald-600 p-2 w-36 rounded-xl hero-text subtitle absolute mt-20 hover:cursor-pointer hover:underline underline-offset-3 hidden md:block">Join Now</button>
           </div>
         </div>
       </div>
@@ -244,7 +246,7 @@ const HomePage: React.FC = () => {
             Join thousands of farmers already earning from sustainable
             agriculture. Your contribution to climate action starts here.
           </p>
-          <button className="bg-emerald-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded w-40">
+          <button onClick={() => navigate("/Signin")} className="bg-emerald-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded w-40">
             Get Started
           </button>
         </div>
