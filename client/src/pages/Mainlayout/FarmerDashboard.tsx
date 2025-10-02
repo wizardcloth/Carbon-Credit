@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
+} from "@/components/ui/card";
 import { Plus, TrendingUp, Leaf, DollarSign, Eye } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { auth } from "@/lib/firebase.ts";
-import { signOut } from "firebase/auth";
+import { Link} from "react-router-dom";
 
 interface Project {
   id: string;
@@ -28,7 +26,6 @@ interface Stats {
 }
 
 const FarmerDashboard: React.FC = () => {
-  const navigate = useNavigate();
   // const [signingOut, setSigningOut] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -38,20 +35,7 @@ const FarmerDashboard: React.FC = () => {
     verifiedProjects: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    // Watch auth state
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      if (!currentUser) {
-        navigate("/unauthorized");
-      } else {
-        setUser(currentUser);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -130,35 +114,15 @@ const FarmerDashboard: React.FC = () => {
   }
 
   // If user is null, we'll be redirected by useEffect
-  if (!user) {
-    return null;
-  }
-  const handleSignout = async () => {
-    try {
-      // setSigningOut(true);
-      await signOut(auth);
-      navigate("/");
-    } catch (error) {
-      console.log(error);
-    }
-  };
+
 
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6">
-        <h1 className="text-3xl font-bold mb-2">
-          Welcome back, {user.displayName || "Farmer"}!
-        </h1>
-        <p className="text-green-100">
-          Track your carbon credit projects and earnings from sustainable
-          farming
-        </p>
-        <Button onClick={handleSignout} className="bg-white text-green-600 hover:bg-gray-100 hover:cursor-pointer ">Sign Out</Button>
-      </div>
+
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mx-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mx-0 md:mx-8 mt-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 ">
             <CardTitle className="text-sm font-medium">
@@ -229,7 +193,7 @@ const FarmerDashboard: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid gap-6 mx-8">
+      <div className="grid gap-6 mx-0 md:mx-8">
         {projects.map((project) => (
           <Card key={project.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
