@@ -17,8 +17,8 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(
     cors({
-        // origin: "https://carbon-credit-fawn.vercel.app",
-        origin: "*",
+        origin: process.env.Origin,
+        // origin: "*",
         methods: ["GET", "POST", "PUT", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,
