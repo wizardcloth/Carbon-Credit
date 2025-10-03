@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import SignInButton from "@/components/SignInButton";
 import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { useState } from "react";
 import { createHeader } from "@/authProvider/authProvider";
 import axiosInstance from "@/lib/axios";
@@ -18,6 +19,7 @@ function RegisterPage() {
     useCreateUserWithEmailAndPassword(auth);
 
   const navigate = useNavigate();
+  const [user] = useAuthState(auth);
 
   const validateForm = () => {
     if (!name.trim()) {
@@ -45,7 +47,7 @@ function RegisterPage() {
 
       await axiosInstance.post(
         "/auth/authCallback/email",
-        { name, email },
+        { name, email ,id: user?.uid},
         header
       );
 

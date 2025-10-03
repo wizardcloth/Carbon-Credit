@@ -11,6 +11,8 @@ import Mainlayout from "./pages/Mainlayout/Mainlayout";
 import Profile from "./pages/Mainlayout/Profile";
 import Projects from "./pages/Mainlayout/Projects";
 import TokenWallet from "./pages/Mainlayout/TokenWallet";
+import Tier1FarmerForm from "./pages/Mainlayout/Tier1FarmerForm";
+import Tier2FarmerForm from "./pages/Mainlayout/Tier2FarmerForm";
 function App() {
   return (
     <>
@@ -22,9 +24,10 @@ function App() {
         <Route element={<Mainlayout />}>
           <Route path="/Dashboard" element={<FarmerDashboard />} />
           <Route path="/Dashboard/Profile" element={<Profile />} />
+          <Route path="/assessment/tier-1" element={<Tier1FarmerForm />} />
+          <Route path="/assessment/tier-2" element={<Tier2FarmerForm />} />
           <Route path="/Dashboard/Projects" element={<Projects />} />
           <Route path="/Dashboard/Wallet" element={<TokenWallet />} />
-
         </Route>
         <Route path="/authcallback/google" element={<AuthCallback />} />
         <Route path="/unauthorized" element={<Unauthorized />} />

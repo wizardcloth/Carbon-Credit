@@ -8,7 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Plus, TrendingUp, Leaf, DollarSign, Eye } from "lucide-react";
-import { Link} from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 interface Project {
   id: string;
@@ -36,8 +39,17 @@ const FarmerDashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate();
 
+  const handleCreateProject = () => {
+    navigate("/Dashboard/projects");
+  };
+
+  const [user, , error] = useAuthState(auth);
   useEffect(() => {
+    if(user) {
+      console.log(user?.uid);
+    }
     fetchDashboardData();
   }, []);
 
@@ -115,11 +127,9 @@ const FarmerDashboard: React.FC = () => {
 
   // If user is null, we'll be redirected by useEffect
 
-
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mx-0 md:mx-8 mt-2">
@@ -187,7 +197,12 @@ const FarmerDashboard: React.FC = () => {
       {/* Projects Section */}
       <div className="flex justify-between items-center mx-8">
         <h2 className="text-2xl font-bold">Your Projects</h2>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button
+          className="bg-green-600 hover:bg-green-700 hover:cursor-pointer"
+          onClick={() => {
+            handleCreateProject();
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
           New Project
         </Button>

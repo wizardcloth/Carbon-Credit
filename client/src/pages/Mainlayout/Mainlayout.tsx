@@ -51,18 +51,14 @@ export default function ResizableHandleDemo() {
     <>
       {/* Header */}
       <div className="relative">
-        <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome back, {"Farmer"}!
-            </h1>
-            <p className="text-green-100">
-              Track your carbon credit projects and earnings from sustainable
-              farming
-            </p>
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 flex justify-between items-center">
+          <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Welcome, {"Farmer"}!</h1>
+            </div>
             <Button
               onClick={handleSignout}
-              className="bg-white text-green-600 hover:bg-gray-100 hover:cursor-pointer mt-2"
+              className="bg-white text-green-600 hover:bg-gray-100 hover:cursor-pointer mt-4 sm:mt-0 w-30"
             >
               Sign Out
             </Button>
@@ -103,7 +99,7 @@ export default function ResizableHandleDemo() {
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-gray-700 hover:bg-green-200 hover:text-green-700 transition-colors"
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <span className="font-medium ">{item.name}</span>
                 </button>
               ))}
             </div>
@@ -122,6 +118,8 @@ export default function ResizableHandleDemo() {
         {/* Desktop Sidebar */}
         <ResizablePanel
           defaultSize={15}
+          minSize={14}
+          maxSize={15}
           className="max-h-[100vh] min-h-[80vh] bg-slate-50 hidden md:block mr-0"
         >
           <div className="flex flex-col h-full justify-between">
@@ -144,8 +142,8 @@ export default function ResizableHandleDemo() {
         <ResizableHandle withHandle />
 
         {/* Main Content */}
-        <ResizablePanel defaultSize={75}>
-          <ScrollArea className="h-[80vh] m-2 rounded-md">
+        <ResizablePanel defaultSize={85}>
+          <ScrollArea className="h-[100vh] m-2 rounded-md">
             <div className="">
               <Outlet />
             </div>
