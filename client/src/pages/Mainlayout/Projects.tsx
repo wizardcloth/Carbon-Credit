@@ -1,6 +1,6 @@
 
 // Projects.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface TierFeature {
@@ -29,7 +29,7 @@ interface TierInfo {
 
 function Projects() {
   const navigate = useNavigate();
-  const [selectedTier, setSelectedTier] = useState<1 | 2 | null>(null);
+  // const [selectedTier, setSelectedTier] = useState<1 | 2 | null>(null);
   const [showComparison, setShowComparison] = useState(false);
 
   const tierData: Record<1 | 2, TierInfo> = {
@@ -180,7 +180,7 @@ function Projects() {
   };
 
   const handleTierSelect = (tier: 1 | 2) => {
-    setSelectedTier(tier);
+    // setSelectedTier(tier);
     // Navigate to the respective form
     navigate(`/assessment/tier-${tier}`);
   };

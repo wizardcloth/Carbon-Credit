@@ -6,7 +6,6 @@ import { createHeader } from "@/authProvider/authProvider";
 import axiosInstance from "@/lib/axios";
 import { useNavigate } from "react-router-dom";
 
-
 interface EmissionData {
   method: string;
   area_ha: number;
@@ -138,7 +137,7 @@ const Tier1FarmerForm = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async () => {
-    if (validateForm()) {
+    if (!validateForm()) {return;}
       try {
         const header = await createHeader();
         const res = await axiosInstance.post(
@@ -155,15 +154,16 @@ const Tier1FarmerForm = () => {
       } catch (error) {
         console.error("Error submitting form:", error);
       }
-    }
+
   };
 
   const [emissionData, setEmissionData] = useState<any | null>(null);
 
   const handleCalculate = async () => {
-    if (validateForm()) {
-      return;
-    }
+    if (!validateForm()) {return;}
+
+    // console.log("cicked");
+   
     setIsCalculating(true);
     try {
       const header = await createHeader();

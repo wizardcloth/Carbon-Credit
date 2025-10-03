@@ -45,7 +45,7 @@ const FarmerDashboard: React.FC = () => {
     navigate("/Dashboard/projects");
   };
 
-  const [user, , error] = useAuthState(auth);
+  const [user, , ] = useAuthState(auth);
   useEffect(() => {
     if(user) {
       console.log(user?.uid);
