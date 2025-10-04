@@ -13,6 +13,7 @@ const app = express();
 dotenv.config();
 
 //middleware
+// hello
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(
@@ -37,14 +38,6 @@ app.use('/api/farmers', farmersRoutes);
 app.get("/", (req, res) => res.send("Serverless Express API"));
 
 
-
-// 404 handler
-// app.use('*', (req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     error: 'Endpoint not found'
-//   });
-// });
 
 
 app.listen(3000, async () => {
