@@ -19,9 +19,10 @@ interface EmissionData {
 }
 
 interface Tier1FormData {
-  firebaseUID: string;
-  farmerName: string;
+  firstName: string;
+  lastName: string;
   phoneNumber: string;
+  aadharNumber: string;
   village: string;
   district: string;
   state: string;
@@ -30,7 +31,6 @@ interface Tier1FormData {
   waterManagement: string;
   organicMaterial: string;
   preSeasonWater: string;
-  aadharNumber: string;
   landSurveyNumber: string;
   emissionData?: EmissionData;
 }
@@ -38,9 +38,10 @@ interface Tier1FormData {
 const Tier1FarmerForm = () => {
   const [user] = useAuthState(auth);
   const [formData, setFormData] = useState<Tier1FormData>({
-    firebaseUID: user?.uid || "",
-    farmerName: "",
+    firstName: "",
+    lastName: "",
     phoneNumber: "",
+    aadharNumber: "",
     village: "",
     district: "",
     state: "",
@@ -49,7 +50,6 @@ const Tier1FarmerForm = () => {
     waterManagement: "continuously_flooded",
     organicMaterial: "no_organic",
     preSeasonWater: "non_flooded",
-    aadharNumber: "",
     landSurveyNumber: "",
   });
 
@@ -104,10 +104,14 @@ const Tier1FarmerForm = () => {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.farmerName.trim())
-      newErrors.farmerName = "Farmer name is required";
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First name is required";
+    if (!formData.lastName.trim())
+      newErrors.lastName = "First name is required";
     if (!formData.phoneNumber.trim())
       newErrors.phoneNumber = "Phone number is required";
+    if (!formData.aadharNumber.trim())
+      newErrors.aadharNumber = "Aadhar number is required";
     if (!formData.village.trim())
       newErrors.village = "Village name is required";
     if (!formData.district.trim())
@@ -115,8 +119,6 @@ const Tier1FarmerForm = () => {
     if (!formData.state.trim()) newErrors.state = "State name is required";
     if (formData.landArea <= 0)
       newErrors.landArea = "Land area must be greater than 0";
-    if (!formData.aadharNumber.trim())
-      newErrors.aadharNumber = "Aadhar number is required";
     if (!formData.landSurveyNumber.trim())
       newErrors.landSurveyNumber = "Land survey number is required";
 
@@ -141,7 +143,7 @@ const Tier1FarmerForm = () => {
       try {
         const header = await createHeader();
         const res = await axiosInstance.post(
-          "/farmers/register",
+          `/farmers/${user?.uid}/project`,
           formData,
           header
         );
@@ -224,18 +226,37 @@ const Tier1FarmerForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Farmer Name <span className="text-red-500">*</span>
+                First Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={formData.farmerName}
+                value={formData.firstName}
                 onChange={(e) =>
-                  handleInputChange("farmerName", e.target.value)
+                  handleInputChange("firstName", e.target.value)
                 }
                 className={`w-full p-3 border rounded-md ${
                   errors.farmerName ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Enter full name"
+                placeholder="Enter first name"
+              />
+              {errors.farmerName && (
+                <p className="text-red-500 text-sm mt-1">{errors.farmerName}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) =>
+                  handleInputChange("lastName", e.target.value)
+                }
+                className={`w-full p-3 border rounded-md ${
+                  errors.farmerName ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Enter last name"
               />
               {errors.farmerName && (
                 <p className="text-red-500 text-sm mt-1">{errors.farmerName}</p>

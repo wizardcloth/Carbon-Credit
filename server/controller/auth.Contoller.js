@@ -1,45 +1,35 @@
-import { User } from "../Model/User.js";
-import { User_email } from "../Model/User.email.js";
-export const authCallbackGoogle = async (req, res) => {
-  try {
-    const { id, firstName, lastName, imageUrl } = req.body;
+// backend/controllers/auth.controller.js
+import User from "../Model/User.js";
+import { v4 as uuidv4 } from "uuid";
 
-    let user = await User.findOne({ firebaseUID: id });
+export const authCallback = async (req, res) => {
+  try {
+    const { id: firebaseUID, firstName, lastName, email, imageUrl } = req.body;
+
+    // Use firebaseUID as primary identifier (or UUID if not provided)
+    const userId = firebaseUID || uuidv4();
+
+    let user = await User.findOne({ _id: userId });
 
     if (user) {
-      console.log("User already exists:");
+      console.log("✅ User already exists:", user._id);
     } else {
       user = await User.create({
-        firebaseUID: id,
-        fullName: `${firstName} ${lastName}`,
-        imageUrl,
+        _id: userId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email || null,
+        imageUrl: imageUrl || null,
       });
-      console.log("User created successfully");
+      console.log("🎉 User created successfully:", user._id);
     }
 
-    res.status(201).json({ message: "User authenticated successfully", user });
+    res.status(201).json({
+      message: "User authenticated successfully",
+      user,
+    });
   } catch (error) {
-    console.error("Error during authentication callback:", error);
-    res.status(500).json({ message: "Something went wrong" });
-  }
-};
-
-export const authCallbackEmail = async (req, res) => {
-  try {
-    const { id, name, email } = req.body;
-    let user = await User.findOne({ firebaseUID: id });
-    if (user) {
-      console.log("User already exists:");
-    } else {
-      user = await User_email.create({
-        name,
-        email,
-        firebaseUID: id,
-      });
-    }
-    res.status(201).json({ message: "User authenticated successfully", user });
-  } catch (error) {
-    console.error("Error during authentication callback:", error);
+    console.error("❌ Error during authentication:", error);
     res.status(500).json({ message: "Something went wrong" });
   }
 };

@@ -1,11 +1,9 @@
 import { Router } from "express";
-import {authCallbackGoogle} from "../controller/auth.Contoller.js";
-import { authCallbackEmail } from "../controller/auth.Contoller.js";
 import { protectedRoute } from "../middleware/auth.middleware.js";
+import { authCallback } from "../controller/auth.Contoller.js";
 
 let router = Router();
 
-router.post("/authCallback/google",protectedRoute,authCallbackGoogle);
-router.post("/authCallback/email",protectedRoute,authCallbackEmail);
+router.post("/authCallback", protectedRoute, authCallback);
 
 export default router;

@@ -12,7 +12,8 @@ import axiosInstance from "@/lib/axios";
 import toast from "react-hot-toast";
 
 function RegisterPage() {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [createUserWithEmailAndPassword, , loading] =
@@ -22,8 +23,12 @@ function RegisterPage() {
   const [user] = useAuthState(auth);
 
   const validateForm = () => {
-    if (!name.trim()) {
-      toast.error("Name cannot be empty");
+    if (!firstName.trim()) {
+      toast.error("firstName cannot be empty");
+      return false;
+    }
+    if (!lastName.trim()) {
+      toast.error("lastName cannot be empty");
       return false;
     }
     if (!email.includes("@gmail.com")) {
@@ -46,14 +51,15 @@ function RegisterPage() {
       const header = await createHeader();
 
       await axiosInstance.post(
-        "/auth/authCallback/email",
-        { name, email ,id: user?.uid},
+        "/auth/authCallback",
+        { firstName, lastName, email ,id: user?.uid},
         header
       );
 
       setEmail("");
       setPassword("");
-      setName("");
+      setFirstName("");
+      setLastName("");
 
       toast.success("Account created successfully");
       navigate("/Dashboard");
@@ -86,15 +92,27 @@ function RegisterPage() {
 
         <div className="space-y-2">
           <Label htmlFor="name" className="text-xs text-white">
-            Name
+            First Name
           </Label>
           <Input
             id="name"
             type="text"
             placeholder="Enter your Full Name"
             className="w-full border-gray-400 bg-white border-2"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+          />
+
+          <Label htmlFor="name" className="text-xs text-white">
+            Last Name
+          </Label>
+          <Input
+            id="name"
+            type="text"
+            placeholder="Enter your Full Name"
+            className="w-full border-gray-400 bg-white border-2"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
           />
 
           <Label htmlFor="email" className="text-xs text-white">

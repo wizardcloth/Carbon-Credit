@@ -48,7 +48,7 @@ const FarmerDashboard: React.FC = () => {
   const [user, , ] = useAuthState(auth);
   useEffect(() => {
     if(user) {
-      console.log(user?.uid);
+      console.log(`user id: ${user?.uid}`);
     }
     fetchDashboardData();
   }, []);
@@ -56,6 +56,9 @@ const FarmerDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+
+      // const res = await axiosInstance.get("/farmer/projects");
+      // console.log(res.data);
 
       // Mock data for demonstration
       const mockProjects = [

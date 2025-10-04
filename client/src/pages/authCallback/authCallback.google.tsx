@@ -22,10 +22,11 @@ const AuthCallback = () => {
                 // const token = await user.getIdToken();
                 // console.log(token);
                 const header = await createHeader();
-                await axiosInstance.post("/auth/authcallback/google", {
+                await axiosInstance.post("/auth/authcallback", {
                     id: user.uid,
                     firstName: user.displayName?.split(" ")[0] || "",
                     lastName: user.displayName?.split(" ")[1] || "",
+                    email: user.email,
                     imageUrl: user.photoURL,
                 },header);
 

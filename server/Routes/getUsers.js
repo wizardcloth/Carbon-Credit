@@ -1,10 +1,8 @@
 import { Router } from "express";
-import { getUsersEmail } from "../controller/User.controller.js";
-import { getUsersGoogle } from "../controller/User.controller.js";
-import {protectedRoute} from "../middleware/auth.middleware.js";
+import { getUsers } from "../controller/User.controller.js";
+import { protectedRoute } from "../middleware/auth.middleware.js";
 const router = Router();
 
-router.get("/google",protectedRoute,getUsersGoogle);
-router.get("/email",protectedRoute,getUsersEmail);
+router.get("/users", protectedRoute, getUsers);
 
 export default router;
