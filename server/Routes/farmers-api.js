@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 
+// POST api/farmers/:userId/project
 router.post("/:userId/project", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -75,6 +76,34 @@ router.post("/:userId/project", async (req, res) => {
       });
     }
 
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+});
+
+// GET api/farmers/:userId/projects
+router.get("/:userId/projects", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 🔹 Find user by ID and select only projects
+    const user = await User.findById(userId).select("projects");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      projects: user.projects,
+    });
+  } catch (error) {
+    console.error("Error fetching user projects:", error);
     res.status(500).json({
       success: false,
       error: "Internal server error",

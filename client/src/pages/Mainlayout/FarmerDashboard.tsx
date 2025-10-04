@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
+import axiosInstance from "@/lib/axios";
 
 interface Project {
   id: string;
@@ -30,6 +31,7 @@ interface Stats {
 
 const FarmerDashboard: React.FC = () => {
   // const [signingOut, setSigningOut] = useState(false);
+  const [user] = useAuthState(auth);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalProjects: 0,
@@ -45,9 +47,8 @@ const FarmerDashboard: React.FC = () => {
     navigate("/Dashboard/projects");
   };
 
-  const [user, , ] = useAuthState(auth);
   useEffect(() => {
-    if(user) {
+    if (user) {
       console.log(`user id: ${user?.uid}`);
     }
     fetchDashboardData();
@@ -57,47 +58,45 @@ const FarmerDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // const res = await axiosInstance.get("/farmer/projects");
-      // console.log(res.data);
+      const res = await axiosInstance.get(`/farmers/${user?.uid}/projects`);
 
-      // Mock data for demonstration
-      const mockProjects = [
-        {
-          id: "1",
-          name: "Rice Field Sustainable Practices",
-          status: "approved",
-          estimatedCredits: 15.5,
-          createdAt: "2024-01-15",
-        },
-        {
-          id: "2",
-          name: "Organic Wheat Cultivation",
-          status: "under_review",
-          estimatedCredits: 8.2,
-          createdAt: "2024-02-20",
-        },
-        {
-          id: "3",
-          name: "Alternate Wetting and Drying",
-          status: "draft",
-          estimatedCredits: 12.8,
-          createdAt: "2024-03-10",
-        },
-      ];
+      if (res.data.success) {
+        const projectsData = res.data.projects;
 
-      const mockStats = {
-        totalProjects: mockProjects.length,
-        totalCredits: mockProjects.reduce(
-          (sum, p) => sum + p.estimatedCredits,
-          0
-        ),
-        totalEarnings: 2840,
-        verifiedProjects: mockProjects.filter((p) => p.status === "approved")
-          .length,
-      };
+        // Map projects into the format your dashboard expects
+        const fetchedProjects = projectsData.map((p: any) => ({
+          id: p._id,
+          name: p.waterManagement,
+          status: p.verificationStatus,
+          estimatedCredits: p.emissionData?.carbonCreditsEligible || 0,
+          createdAt: p.createdAt
+            ? new Date(p.createdAt).toLocaleDateString()
+            : "",
+        }));
 
-      setProjects(mockProjects);
-      setStats(mockStats);
+        // Calculate stats
+        const dashboardStats = {
+          totalProjects: fetchedProjects.length,
+          totalCredits: fetchedProjects.reduce(
+            (sum: number, p: Project) => sum + p.estimatedCredits,
+            0
+          ),
+          totalEarnings: fetchedProjects.reduce(
+            (sum: number, p: Project) => sum + (p.estimatedCredits * 100 || 0), // example conversion
+            0
+          ),
+          verifiedProjects: fetchedProjects.filter(
+            (p: Project) => p.status === "verified"
+          ).length,
+        };
+
+        setProjects(fetchedProjects);
+        setStats(dashboardStats);
+      } else {
+        console.error("Failed to fetch projects:", res.data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
