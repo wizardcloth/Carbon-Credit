@@ -3,16 +3,17 @@ import dotenv from "dotenv";
 import cors from "cors";
 import bodyParser from "body-parser";
 import {connectDB} from "./config/db.js";
-import users from "./Routes/getUsers.js"
-import authRoutes from "./Routes/authRoute.js";
-import emissionsRoutes from "./Routes/emissions-api.js"
-import farmersRoutes from "./Routes/farmers-api.js"
-
+import users from "./Routes/User.Routes.js";
+import authRoutes from "./Routes/auth.Route.js";
+import emissionsRoutes from "./Routes/emissions.Route.js"
+import farmersRoutes from "./Routes/farmers.Route.js"
+import adminRoute from "./Routes/admin.Routes.js";
 const app = express();
 
 dotenv.config();
 
 //middleware
+// hello
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(
@@ -28,6 +29,7 @@ app.use(
 
 //routes
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoute);
 app.use("/api/users", users);
 app.use('/api/emissions', emissionsRoutes);
 app.use('/api/farmers', farmersRoutes);
@@ -37,14 +39,6 @@ app.use('/api/farmers', farmersRoutes);
 app.get("/", (req, res) => res.send("Serverless Express API"));
 
 
-
-// 404 handler
-// app.use('*', (req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     error: 'Endpoint not found'
-//   });
-// });
 
 
 app.listen(3000, async () => {

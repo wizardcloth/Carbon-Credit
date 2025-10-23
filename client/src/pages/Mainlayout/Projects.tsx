@@ -1,470 +1,338 @@
-
 // Projects.tsx
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-interface TierFeature {
-  icon: string;
-  title: string;
-  description: string;
-  included: boolean;
-}
-
-interface TierInfo {
-  title: string;
-  subtitle: string;
-  description: string;
-  complexity: 'Basic' | 'Advanced';
-  duration: string;
-  accuracy: string;
-  carbonPotential: string;
-  features: TierFeature[];
-  requirements: string[];
-  benefits: string[];
-  idealFor: string[];
-  estimatedReduction: string;
-  color: string;
-  gradientClass: string;
-}
+import { 
+  Leaf, 
+  TrendingDown, 
+  Droplets, 
+  CheckCircle, 
+  Clock, 
+  MapPin, 
+  FileText, 
+  ArrowRight,
+  Info,
+  Phone,
+  MessageSquare,
+  Users
+} from 'lucide-react';
 
 function Projects() {
   const navigate = useNavigate();
-  // const [selectedTier, setSelectedTier] = useState<1 | 2 | null>(null);
-  const [showComparison, setShowComparison] = useState(false);
 
-  const tierData: Record<1 | 2, TierInfo> = {
-    1: {
-      title: 'Tier 1 Assessment',
-      subtitle: 'Quick Carbon Credit Calculation',
-      description: 'Basic emission calculation using simplified parameters. Perfect for farmers who want to quickly understand their carbon credit potential without complex data collection.',
-      complexity: 'Basic',
-      duration: '5-10 minutes',
-      accuracy: '85-90%',
-      carbonPotential: '2-6 credits/hectare',
-      estimatedReduction: '30-50%',
-      color: 'blue',
-      gradientClass: 'from-blue-500 to-blue-700',
-      features: [
-        {
-          icon: '📋',
-          title: 'Simple Data Collection',
-          description: 'Basic farming details only',
-          included: true
-        },
-        {
-          icon: '⚡',
-          title: 'Quick Processing',
-          description: 'Instant emission calculation',
-          included: true
-        },
-        {
-          icon: '📊',
-          title: 'Standard Factors',
-          description: 'Uses IPCC default scaling factors',
-          included: true
-        },
-        {
-          icon: '💰',
-          title: 'Credit Estimation',
-          description: 'Basic carbon credit potential',
-          included: true
-        },
-        {
-          icon: '🔬',
-          title: 'Detailed Soil Analysis',
-          description: 'India-specific soil factors',
-          included: false
-        },
-        {
-          icon: '🌾',
-          title: 'Variety-Specific Factors',
-          description: 'Rice variety scaling factors',
-          included: false
-        }
-      ],
-      requirements: [
-        'Land area in hectares',
-        'Water management practice',
-        'Organic material usage',
-        'Farming season (Kharif/Rabi/Summer)',
-        'Basic location details'
-      ],
-      benefits: [
-        'Quick assessment process',
-        'Lower documentation burden',
-        'Immediate results',
-        'Good for small farmers',
-        'Easy to understand'
-      ],
-      idealFor: [
-        'Small-scale farmers (1-5 hectares)',
-        'First-time carbon credit participants',
-        'Traditional farming methods',
-        'Quick feasibility check',
-        'Farmers with limited technical knowledge'
-      ]
-    },
-    2: {
-      title: 'Tier 2 Assessment',
-      subtitle: 'Comprehensive Carbon Analysis',
-      description: 'Advanced emission calculation using India-specific factors including soil type, rice variety, and detailed farming conditions for maximum accuracy.',
-      complexity: 'Advanced',
-      duration: '15-25 minutes',
-      accuracy: '95-98%',
-      carbonPotential: '3-8 credits/hectare',
-      estimatedReduction: '50-70%',
-      color: 'green',
-      gradientClass: 'from-green-500 to-green-700',
-      features: [
-        {
-          icon: '📋',
-          title: 'Comprehensive Data',
-          description: 'Detailed farming information',
-          included: true
-        },
-        {
-          icon: '🔬',
-          title: 'Soil-Specific Analysis',
-          description: 'India-specific soil factors',
-          included: true
-        },
-        {
-          icon: '🌾',
-          title: 'Variety-Specific Calculation',
-          description: 'Rice variety scaling factors',
-          included: true
-        },
-        {
-          icon: '📊',
-          title: 'Advanced Modeling',
-          description: 'Multiple scaling factor integration',
-          included: true
-        },
-        {
-          icon: '💰',
-          title: 'Maximum Credit Potential',
-          description: 'Optimized carbon credit calculation',
-          included: true
-        },
-        {
-          icon: '🎯',
-          title: 'Precision Farming Insights',
-          description: 'Detailed improvement recommendations',
-          included: true
-        }
-      ],
-      requirements: [
-        'All Tier 1 requirements',
-        'Soil type classification',
-        'Rice variety details',
-        'Previous crop information',
-        'Fertilizer and pesticide usage',
-        'Expected yield data',
-        'Irrigation source details'
-      ],
-      benefits: [
-        'Maximum accuracy in calculations',
-        'Higher carbon credit potential',
-        'Detailed improvement recommendations',
-        'Better verification acceptance',
-        'Premium pricing eligibility'
-      ],
-      idealFor: [
-        'Medium to large farmers (5+ hectares)',
-        'Progressive farmers adopting new techniques',
-        'Farmers seeking maximum carbon credits',
-        'Those with detailed farm records',
-        'Commercial farming operations'
-      ]
-    }
+  const handleStartAssessment = () => {
+    navigate('/assessment/tier-2');
   };
-
-  const handleTierSelect = (tier: 1 | 2) => {
-    // setSelectedTier(tier);
-    // Navigate to the respective form
-    navigate(`/assessment/tier-${tier}`);
-  };
-
-  const ComparisonTable = () => (
-    <div className="mt-8 rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-gray-50 px-6 py-4 border-b">
-        <h3 className="text-xl font-semibold text-gray-800">Detailed Comparison</h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Feature
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">
-                Tier 1
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">
-                Tier 2
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {[
-              { feature: 'Time Required', tier1: '5-10 minutes', tier2: '15-25 minutes' },
-              { feature: 'Accuracy Level', tier1: '85-90%', tier2: '95-98%' },
-              { feature: 'Data Points Required', tier1: '8-10 fields', tier2: '15-20 fields' },
-              { feature: 'Scaling Factors', tier1: '3 factors', tier2: '5+ factors' },
-              { feature: 'Soil Type Consideration', tier1: '❌', tier2: '✅' },
-              { feature: 'Rice Variety Factors', tier1: '❌', tier2: '✅' },
-              { feature: 'Fertilizer Analysis', tier1: 'Basic', tier2: 'Detailed' },
-              { feature: 'Credit Potential', tier1: '2-6 per hectare', tier2: '3-8 per hectare' },
-              { feature: 'Verification Success', tier1: '80-85%', tier2: '90-95%' },
-              { feature: 'Premium Pricing', tier1: '❌', tier2: '✅' }
-            ].map((row, index) => (
-              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {row.feature}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">
-                  {row.tier1}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">
-                  {row.tier2}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const TierCard = ({ tier, data }: { tier: 1 | 2; data: TierInfo }) => (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-      {/* Header with gradient */}
-      <div className={`bg-gradient-to-r ${data.gradientClass} p-6 text-white`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold">{data.title}</h3>
-            <p className="text-blue-100 mt-1">{data.subtitle}</p>
-          </div>
-          <div className="text-right">
-            <div className=" bg-opacity-20 rounded-lg px-3 py-1">
-              <span className="text-sm font-medium">{data.complexity}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <p className="text-gray-600 mb-6 leading-relaxed">{data.description}</p>
-
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Duration</div>
-            <div className="text-lg font-semibold text-gray-800">{data.duration}</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Accuracy</div>
-            <div className="text-lg font-semibold text-gray-800">{data.accuracy}</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Credits Potential</div>
-            <div className="text-lg font-semibold text-green-600">{data.carbonPotential}</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Est. Reduction</div>
-            <div className="text-lg font-semibold text-green-600">{data.estimatedReduction}</div>
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="mb-6">
-          <h4 className="font-semibold text-gray-800 mb-3">Features Included</h4>
-          <div className="space-y-2">
-            {data.features.map((feature, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <span className="text-lg">{feature.icon}</span>
-                <div className="flex-1">
-                  <div className={`text-sm font-medium ${feature.included ? 'text-gray-800' : 'text-gray-400'}`}>
-                    {feature.title}
-                    {!feature.included && ' (Not included)'}
-                  </div>
-                  <div className={`text-xs ${feature.included ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {feature.description}
-                  </div>
-                </div>
-                <div className="text-lg">
-                  {feature.included ? '✅' : '❌'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Ideal For */}
-        <div className="mb-6">
-          <h4 className="font-semibold text-gray-800 mb-3">Ideal For</h4>
-          <div className="space-y-1">
-            {data.idealFor.map((item, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Button */}
-        <button
-          onClick={() => handleTierSelect(tier)}
-          className={`w-full bg-gradient-to-r ${data.gradientClass} text-white py-3 px-6 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 transform hover:scale-105`}
-        >
-          Start {data.title} →
-        </button>
-      </div>
-    </div>
-  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
-    
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        {/* Quick Decision Helper */}
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 mb-8 rounded-r-lg">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-lg font-medium text-yellow-800">
-                Need help choosing? 🤔
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-white">
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Main Heading */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-green-900 mb-4">
+            Rice Cultivation Carbon Credit Assessment
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Calculate your methane emission reduction potential using IPCC 2019 Tier 2 methodology 
+            and earn carbon credits from sustainable rice farming practices
+          </p>
+        </div>
+
+        {/* Info Alert */}
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-lg shadow-sm">
+          <div className="flex items-start">
+            <Info className="h-6 w-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                IPCC 2019 Tier 2 Methodology
               </h3>
-              <p className="mt-2 text-sm text-yellow-700">
-                <strong>Choose Tier 1</strong> if you're new to carbon credits and want a quick assessment. 
-                <strong> Choose Tier 2</strong> if you have detailed farming records and want maximum accuracy and credit potential.
+              <p className="text-sm text-blue-800">
+                This assessment uses the <strong>IPCC 2019 Refinement (AFOLU Vol.4, Ch.5)</strong> methodology 
+                for rice cultivation emissions. It incorporates water management practices, organic amendments, 
+                and region-specific factors to calculate your carbon credit potential with <strong>95-98% accuracy</strong>.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Tier Cards */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {Object.entries(tierData).map(([tier, data]) => (
-            <TierCard key={tier} tier={parseInt(tier) as 1 | 2} data={data} />
-          ))}
-        </div>
+        {/* Main Assessment Card */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
+          {/* Header with gradient */}
+          <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-8 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold mb-2">Tier 2 CH₄ Emission Assessment</h2>
+                <p className="text-green-100 text-lg">
+                  Comprehensive carbon credit calculation for rice cultivation
+                </p>
+              </div>
+              <div className="hidden md:block">
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-4 text-center">
+                  <div className="text-4xl font-bold">3-8</div>
+                  <div className="text-sm text-green-100">Credits per hectare</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Comparison Toggle */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => setShowComparison(!showComparison)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
-          >
-            {showComparison ? '📊 Hide' : '📊 Show'} Detailed Comparison
-          </button>
-        </div>
+          {/* Content */}
+          <div className="p-8">
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+                <Clock className="h-8 w-8 text-blue-600 mb-2" />
+                <div className="text-sm text-blue-700 font-medium mb-1">Duration</div>
+                <div className="text-2xl font-bold text-blue-900">15-20 min</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200">
+                <CheckCircle className="h-8 w-8 text-green-600 mb-2" />
+                <div className="text-sm text-green-700 font-medium mb-1">Accuracy</div>
+                <div className="text-2xl font-bold text-green-900">95-98%</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-5 border border-emerald-200">
+                <TrendingDown className="h-8 w-8 text-emerald-600 mb-2" />
+                <div className="text-sm text-emerald-700 font-medium mb-1">Reduction</div>
+                <div className="text-2xl font-bold text-emerald-900">30-70%</div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200">
+                <Leaf className="h-8 w-8 text-yellow-600 mb-2" />
+                <div className="text-sm text-yellow-700 font-medium mb-1">Credits</div>
+                <div className="text-2xl font-bold text-yellow-900">3-8/ha</div>
+              </div>
+            </div>
 
-        {/* Comparison Table */}
-        {showComparison && <ComparisonTable />}
+            {/* Features */}
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <CheckCircle className="h-6 w-6 text-green-600 mr-2" />
+                What's Included in This Assessment
+              </h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {[
+                  {
+                    icon: <Droplets className="h-5 w-5" />,
+                    title: 'Water Management Analysis',
+                    description: 'Continuously flooded, AWD, single/multiple drainage regimes'
+                  },
+                  {
+                    icon: <Leaf className="h-5 w-5" />,
+                    title: 'Organic Amendment Assessment',
+                    description: 'Rice straw, compost, farmyard manure, green manure impacts'
+                  },
+                  {
+                    icon: <MapPin className="h-5 w-5" />,
+                    title: 'Spatial Field Mapping',
+                    description: 'Interactive map boundary selection for satellite verification'
+                  },
+                  {
+                    icon: <TrendingDown className="h-5 w-5" />,
+                    title: 'Baseline vs Project Emissions',
+                    description: 'Compare business-as-usual with improved practices'
+                  },
+                  {
+                    icon: <CheckCircle className="h-5 w-5" />,
+                    title: 'Gold Standard Compliant',
+                    description: '15% uncertainty deduction for verified carbon credits'
+                  },
+                  {
+                    icon: <FileText className="h-5 w-5" />,
+                    title: 'IPCC 2019 Certified',
+                    description: 'Uses latest refinement methodology with regional factors'
+                  }
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg">
+                    <div className="text-green-600 mt-1">{feature.icon}</div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{feature.title}</div>
+                      <div className="text-sm text-gray-600">{feature.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Requirements */}
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                📋 Information You'll Need
+              </h3>
+              <div className="grid md:grid-cols-2 gap-3">
+                {[
+                  'Personal details (Name, Phone, Aadhar)',
+                  'Land survey number and area (hectares)',
+                  'Village, district, and state location',
+                  'Water management practices during cultivation',
+                  'Pre-season water regime information',
+                  'Organic amendments (type, rate, timing)',
+                  'Field boundary on interactive map',
+                  'Cultivation period (90-140 days typical)'
+                ].map((req, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                    <span className="text-sm text-gray-700">{req}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <button
+              onClick={handleStartAssessment}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 px-8 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+            >
+              Start Carbon Credit Assessment
+              <ArrowRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
 
         {/* Process Flow */}
-        <div className="mt-12 bg-white rounded-lg shadow-lg p-8">
-          <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            Assessment Process Flow
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+            🌾 Simple 4-Step Process
           </h3>
           <div className="grid md:grid-cols-4 gap-6">
             {[
               {
                 step: '1',
-                title: 'Choose Tier',
-                description: 'Select Tier 1 or Tier 2 based on your needs',
-                icon: '🎯'
+                title: 'Fill Form',
+                description: 'Enter your farming details and select field boundary on map',
+                icon: '📝',
+                color: 'from-blue-500 to-blue-600'
               },
               {
                 step: '2',
-                title: 'Fill Form',
-                description: 'Complete the assessment form with your farming details',
-                icon: '📝'
+                title: 'Calculate',
+                description: 'System calculates baseline vs project emissions using IPCC 2019',
+                icon: '⚡',
+                color: 'from-green-500 to-green-600'
               },
               {
                 step: '3',
-                title: 'Calculate',
-                description: 'System calculates your emission reduction potential',
-                icon: '⚡'
+                title: 'Review Results',
+                description: 'See your carbon credit potential and emission reduction percentage',
+                icon: '📊',
+                color: 'from-emerald-500 to-emerald-600'
               },
               {
                 step: '4',
-                title: 'Get Credits',
-                description: 'Receive carbon credits after admin verification',
-                icon: '🏆'
+                title: 'Get Verified',
+                description: 'Submit for verification and receive tradeable carbon credits',
+                icon: '✅',
+                color: 'from-yellow-500 to-yellow-600'
               }
             ].map((item) => (
               <div key={item.step} className="text-center">
-                <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                <div className={`bg-gradient-to-r ${item.color} text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold shadow-lg`}>
                   {item.step}
                 </div>
-                <div className="text-3xl mb-3">{item.icon}</div>
-                <h4 className="font-semibold text-gray-800 mb-2">{item.title}</h4>
+                <div className="text-4xl mb-3">{item.icon}</div>
+                <h4 className="font-semibold text-gray-900 mb-2">{item.title}</h4>
                 <p className="text-sm text-gray-600">{item.description}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Additional Information */}
-        <div className="mt-12 grid md:grid-cols-2 gap-8">
+        {/* Benefits & Support */}
+        <div className="grid md:grid-cols-2 gap-8">
           {/* Benefits */}
-          <div className="bg-green-50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-green-800 mb-4">
-              🌱 Why Carbon Credits from Rice Farming?
+          <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-8 border border-green-200">
+            <h3 className="text-2xl font-semibold text-green-900 mb-6 flex items-center">
+              <Leaf className="h-6 w-6 mr-2" />
+              Why Choose Our Platform?
             </h3>
-            <ul className="space-y-3 text-green-700">
-              <li className="flex items-start space-x-2">
-                <span className="text-green-500 mt-1">•</span>
-                <span>Reduce methane emissions by 30-70% through improved practices</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-green-500 mt-1">•</span>
-                <span>Earn additional income from sustainable farming</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-green-500 mt-1">•</span>
-                <span>Contribute to India's climate change goals</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-green-500 mt-1">•</span>
-                <span>Access to premium markets and buyers</span>
-              </li>
+            <ul className="space-y-4">
+              {[
+                {
+                  icon: '🎯',
+                  text: 'IPCC 2019 compliant methodology with 95-98% accuracy'
+                },
+                {
+                  icon: '💰',
+                  text: 'Maximize carbon credits with improved water management'
+                },
+                {
+                  icon: '🛰️',
+                  text: 'Satellite verification using Google Earth Engine & Sentinel'
+                },
+                {
+                  icon: '✅',
+                  text: 'Gold Standard certified emission reduction calculations'
+                },
+                {
+                  icon: '📈',
+                  text: 'Track baseline vs project emissions in real-time'
+                },
+                {
+                  icon: '🌍',
+                  text: 'Contribute to India\'s climate goals while earning income'
+                }
+              ].map((benefit, index) => (
+                <li key={index} className="flex items-start space-x-3">
+                  <span className="text-2xl flex-shrink-0">{benefit.icon}</span>
+                  <span className="text-green-800 font-medium">{benefit.text}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Support */}
-          <div className="bg-blue-50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-blue-800 mb-4">
-              🤝 Need Support?
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-8 border border-blue-200">
+            <h3 className="text-2xl font-semibold text-blue-900 mb-6 flex items-center">
+              <Users className="h-6 w-6 mr-2" />
+              Need Help?
             </h3>
-            <div className="space-y-3 text-blue-700">
-              <div className="flex items-start space-x-2">
-                <span className="text-blue-500 mt-1">📞</span>
+            <div className="space-y-6">
+              <div className="flex items-start space-x-4">
+                <div className="bg-blue-600 rounded-full p-3">
+                  <Phone className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <strong>Phone Support:</strong> 1800-XXX-XXXX
-                  <div className="text-sm">Available 9 AM - 6 PM (Mon-Sat)</div>
+                  <strong className="text-blue-900">Phone Support</strong>
+                  <div className="text-blue-700 mt-1">1800-XXX-XXXX</div>
+                  <div className="text-sm text-blue-600">Available 9 AM - 6 PM (Mon-Sat)</div>
                 </div>
               </div>
-              <div className="flex items-start space-x-2">
-                <span className="text-blue-500 mt-1">💬</span>
+
+              <div className="flex items-start space-x-4">
+                <div className="bg-green-600 rounded-full p-3">
+                  <MessageSquare className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <strong>WhatsApp:</strong> +91-XXXXX-XXXXX
-                  <div className="text-sm">Quick queries and support</div>
+                  <strong className="text-blue-900">WhatsApp Support</strong>
+                  <div className="text-blue-700 mt-1">+91-XXXXX-XXXXX</div>
+                  <div className="text-sm text-blue-600">Quick queries and assistance</div>
                 </div>
               </div>
-              <div className="flex items-start space-x-2">
-                <span className="text-blue-500 mt-1">👨‍🌾</span>
+
+              <div className="flex items-start space-x-4">
+                <div className="bg-emerald-600 rounded-full p-3">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <strong>Field Support:</strong> Local agricultural officers
-                  <div className="text-sm">On-ground assistance available</div>
+                  <strong className="text-blue-900">Field Support</strong>
+                  <div className="text-blue-700 mt-1">Local agricultural officers</div>
+                  <div className="text-sm text-blue-600">On-ground assistance available</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Additional Info Banner */}
+        <div className="mt-8 bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 p-6 rounded-r-xl">
+          <h4 className="font-semibold text-yellow-900 mb-2">
+            🌾 Rice Cultivation Emission Reduction Potential
+          </h4>
+          <p className="text-yellow-800 text-sm">
+            By adopting improved water management practices like Alternate Wetting and Drying (AWD) 
+            or controlled drainage, you can reduce methane emissions by <strong>30-70%</strong> compared 
+            to continuously flooded conditions, while maintaining or even improving yields. Each tonne 
+            of CO₂e reduced can be monetized as a carbon credit at approximately <strong>₹100-150 per credit</strong>.
+          </p>
         </div>
       </div>
     </div>

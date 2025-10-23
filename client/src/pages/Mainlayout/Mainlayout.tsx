@@ -4,16 +4,18 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { auth } from "@/lib/firebase.ts";
 import { signOut } from "firebase/auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Home, User, FolderKanban, Wallet, Menu, X } from "lucide-react"; // Added Menu + X icons
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/Store/useAuthStore";
 
 export default function ResizableHandleDemo() {
   const [user, setUser] = useState<any>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const {isAdmin} = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function ResizableHandleDemo() {
     return null;
   }
 
+
   return (
     <>
       {/* Header */}
@@ -54,7 +57,13 @@ export default function ResizableHandleDemo() {
         <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 flex justify-between items-center">
           <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Welcome, {"Farmer"}!</h1>
+              {
+                isAdmin ? (
+                  <Link to="/admin"><h1 className="text-3xl font-bold mb-2 onhover:cursor-pointer hover:underline hover:text-red-300">Welcome, {"Admin"}!</h1></Link>
+                ) : (
+                  <h1 className="text-3xl font-bold mb-2">Welcome, {"Farmer"}!</h1>
+                )
+              }
             </div>
             <Button
               onClick={handleSignout}
