@@ -7,17 +7,19 @@ export const protectRoute = async (req, res, next) => {
     const decodeToken = await admin.auth().verifyIdToken(token);
     req.user = decodeToken;
     next();
-  }catch (error) {
+  } catch (error) {
     res.status(401).json({ error: "Unauthorized" });
   }
-}
+};
 
 // Admin Middleware (Only allows specific users)
 export const Admin = async (req, res, next) => {
   try {
     const user = await admin.auth().getUser(req.user.uid);
 
-    if (user.email !== process.env.Admin_email) {
+    const adminEmails = process.env.Admin_email.split(",");
+
+    if (!adminEmails.includes(user.email)) {
       return res.json({ message: "Forbidden" });
     }
 
