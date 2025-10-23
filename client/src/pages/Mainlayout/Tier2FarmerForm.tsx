@@ -1,793 +1,723 @@
-// Tier2FarmerForm.tsx
-import React, { useState } from "react";
+import { useState } from "react";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { createHeader } from "@/authProvider/authProvider";
+import axiosInstance from "@/lib/axios";
+import { useNavigate } from "react-router-dom";
+import MapBoundarySelector from "@/components/MapBoundarySelector";
+import toast from "react-hot-toast";
 
-interface Tier1FormData {
+interface OrganicAmendment {
+  type: string;
+  applicationRate: number; // tonnes/ha
+  timing: string; // 'short' (<30 days) or 'long' (>30 days)
+}
+
+interface Tier2FormData {
+  // Personal Details
   farmerName: string;
   phoneNumber: string;
+  aadharNumber: string;
+  landSurveyNumber: string;
   village: string;
   district: string;
   state: string;
-  landArea: number;
-  season: string;
-  waterManagement: string;
-  organicMaterial: string;
-  preSeasonWater: string;
-  aadharNumber: string;
-  landSurveyNumber: string;
+
+  // Core Agronomic Fields (Required for IPCC 2019 Tier 2)
+  landArea: number; // hectares
+  cultivationPeriod: number; // days (default 112 for South Asia)
+  waterRegimeDuringCultivation: string; // SFw
+  preSeasonWaterRegime: string; // SFp
+  organicAmendments: OrganicAmendment[]; // For SFo calculation
+
+  // Map boundary
+  boundary?: any;
 }
 
-interface Tier2FormData extends Tier1FormData {
-  soilType: string;
-  riceVariety: string;
-  previousCrop: string;
-  irrigationSource: string;
-  fertiliserType: string;
-  pesticidesUsed: string;
-  labourType: string;
-  machineUsage: string;
-  cropResidueManagement: string;
-  yieldExpected: number;
-}
+const Tier2FarmerForm = () => {
+  const [user] = useAuthState(auth);
+  const navigate = useNavigate();
+  const [boundary, setBoundary] = useState<any | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<any | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-const Tier2FarmerForm: React.FC = ({}) => {
+  // ✅ INITIALIZE WITH BASELINE ORGANIC AMENDMENT (5 tonnes/ha rice straw)
   const [formData, setFormData] = useState<Tier2FormData>({
-    // Basic details from Tier 1
     farmerName: "",
     phoneNumber: "",
-    village: "",
-    district: "",
-    state: "",
-    landArea: 0,
-    season: "kharif",
-    waterManagement: "continuously_flooded",
-    organicMaterial: "no_organic",
-    preSeasonWater: "non_flooded",
     aadharNumber: "",
     landSurveyNumber: "",
-
-    // Additional Tier 2 parameters
-    soilType: "alluvial",
-    riceVariety: "traditional",
-    previousCrop: "rice",
-    irrigationSource: "canal",
-    fertiliserType: "urea_dap",
-    pesticidesUsed: "minimal",
-    labourType: "family_labour",
-    machineUsage: "tractor_only",
-    cropResidueManagement: "incorporated",
-    yieldExpected: 3.5,
+    village: "",
+    district: "",
+    state: "India",
+    landArea: 0,
+    cultivationPeriod: 112,
+    waterRegimeDuringCultivation: "continuously_flooded",
+    preSeasonWaterRegime: "non_flooded_less_180",
+    organicAmendments: [
+      {
+        type: "straw",
+        applicationRate: 5.0,
+        timing: "long",
+      },
+    ],
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isCalculating, setIsCalculating] = useState(false);
+  const [currentAmendment, setCurrentAmendment] = useState<OrganicAmendment>({
+    type: "none",
+    applicationRate: 0,
+    timing: "long",
+  });
 
-  // All options from Tier 1 form (abbreviated here)
-  const waterManagementOptions = [
-    {
-      value: "continuously_flooded",
-      label: "Continuously Flooded (Traditional)",
-    },
-    { value: "single_aeration", label: "Single Aeration (Field dried once)" },
-    {
-      value: "multiple_aeration",
-      label: "Multiple Aeration (Field dried multiple times)",
-    },
-    { value: "intermittent_irrigation", label: "Intermittent Irrigation" },
-    { value: "awd_mild", label: "Alternate Wetting & Drying - Mild" },
-    { value: "awd_moderate", label: "Alternate Wetting & Drying - Moderate" },
-    { value: "rainfed_flood_prone", label: "Rainfed - Flood Prone Area" },
-    { value: "rainfed_drought_prone", label: "Rainfed - Drought Prone Area" },
-    { value: "deepwater", label: "Deep Water Rice" },
-  ];
+  const handleInputChange = (field: keyof Tier2FormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (result) setResult(null); // Clear results if form changes
+  };
 
-  const organicMaterialOptions = [
-    { value: "no_organic", label: "No Organic Material" },
-    { value: "rice_straw_fresh", label: "Fresh Rice Straw" },
-    { value: "rice_straw_composted", label: "Composted Rice Straw" },
-    { value: "farmyard_manure", label: "Farmyard Manure (Cow Dung)" },
-    { value: "green_manure", label: "Green Manure" },
-    { value: "biogas_slurry", label: "Biogas Slurry" },
-  ];
+  const addOrganicAmendment = () => {
+    if (
+      currentAmendment.type !== "none" &&
+      currentAmendment.applicationRate > 0
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        organicAmendments: [...prev.organicAmendments, { ...currentAmendment }],
+      }));
+      setCurrentAmendment({ type: "none", applicationRate: 0, timing: "long" });
+      if (result) setResult(null);
+    }
+  };
 
-  const seasonOptions = [
-    { value: "kharif", label: "Kharif (Monsoon Season - June to November)" },
-    { value: "rabi", label: "Rabi (Winter Season - December to April)" },
-    { value: "summer", label: "Summer (April to June)" },
-  ];
+  const removeAmendment = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      organicAmendments: prev.organicAmendments.filter((_, i) => i !== index),
+    }));
+    if (result) setResult(null);
+  };
 
-  const preSeasonWaterOptions = [
-    { value: "non_flooded", label: "Field was not flooded before planting" },
-    {
-      value: "flooded_30_days",
-      label: "Field was flooded for less than 30 days",
-    },
-    {
-      value: "flooded_180_days",
-      label: "Field was flooded for more than 180 days",
-    },
-  ];
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
 
-  // Additional Tier 2 specific options
-  const soilTypeOptions = [
-    { value: "alluvial", label: "Alluvial Soil (River-deposited, fertile)" },
-    { value: "laterite", label: "Laterite Soil (Red, iron-rich)" },
-    { value: "black_cotton", label: "Black Cotton Soil (Heavy clay)" },
-    { value: "red_sandy", label: "Red Sandy Soil (Well-drained)" },
-    { value: "coastal_saline", label: "Coastal Saline Soil" },
-  ];
-
-  const riceVarietyOptions = [
-    { value: "traditional", label: "Traditional/Local Variety" },
-    { value: "high_yielding", label: "High Yielding Variety (HYV)" },
-    { value: "hybrid", label: "Hybrid Variety" },
-    { value: "aromatic", label: "Aromatic Variety (Basmati type)" },
-  ];
-
-  const previousCropOptions = [
-    { value: "rice", label: "Rice (Same field)" },
-    { value: "wheat", label: "Wheat" },
-    { value: "maize", label: "Maize/Corn" },
-    { value: "sugarcane", label: "Sugarcane" },
-    { value: "cotton", label: "Cotton" },
-    { value: "pulses", label: "Pulses (Dal crops)" },
-    { value: "vegetables", label: "Vegetables" },
-    { value: "fallow", label: "Left Empty (Fallow)" },
-  ];
-
-  const irrigationSourceOptions = [
-    { value: "canal", label: "Canal Water" },
-    { value: "tube_well", label: "Tube Well/Bore Well" },
-    { value: "river", label: "River Water" },
-    { value: "rain_fed", label: "Rain Fed Only" },
-    { value: "pond", label: "Pond/Tank Water" },
-  ];
-
-  const fertiliserTypeOptions = [
-    { value: "urea_dap", label: "Urea + DAP (Chemical)" },
-    { value: "npk_complex", label: "NPK Complex Fertilizer" },
-    { value: "organic_only", label: "Only Organic Fertilizer" },
-    { value: "integrated", label: "Mix of Chemical + Organic" },
-    { value: "minimal", label: "Very Little Fertilizer" },
-  ];
-
-  const pesticidesOptions = [
-    { value: "none", label: "No Pesticides Used" },
-    { value: "minimal", label: "Minimal Use (Only when needed)" },
-    { value: "moderate", label: "Regular Use as per guidelines" },
-    { value: "organic", label: "Organic/Natural Pest Control" },
-  ];
-
-  const labourTypeOptions = [
-    { value: "family_labour", label: "Family Labour Only" },
-    { value: "hired_labour", label: "Hired Labour" },
-    { value: "mixed_labour", label: "Family + Hired Labour" },
-  ];
-
-  const machineUsageOptions = [
-    { value: "manual_only", label: "All Manual Work" },
-    { value: "tractor_only", label: "Tractor for Land Preparation" },
-    { value: "transplanter", label: "Tractor + Transplanter" },
-    { value: "harvester", label: "Tractor + Harvester" },
-    { value: "fully_mechanized", label: "Fully Mechanized" },
-  ];
-
-  const cropResidueOptions = [
-    { value: "incorporated", label: "Mixed into Soil" },
-    { value: "removed", label: "Removed from Field" },
-    { value: "burned", label: "Burned (Not Recommended)" },
-    { value: "composted", label: "Made into Compost" },
-  ];
-
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Basic validations (same as Tier 1)
     if (!formData.farmerName.trim())
       newErrors.farmerName = "Farmer name is required";
-    if (!formData.phoneNumber.trim())
-      newErrors.phoneNumber = "Phone number is required";
-    if (formData.landArea <= 0)
-      newErrors.landArea = "Land area must be greater than 0";
-    if (formData.yieldExpected <= 0)
-      newErrors.yieldExpected = "Expected yield must be greater than 0";
-    if (!formData.village.trim())
-      newErrors.village = "Village name is required";
-    if (!formData.district.trim())
-      newErrors.district = "District name is required";
-    if (!formData.state.trim()) newErrors.state = "State name is required";
-    if (formData.landArea <= 0)
-      newErrors.landArea = "Land area must be greater than 0";
-    if (!formData.aadharNumber.trim())
-      newErrors.aadharNumber = "Aadhar number is required";
-    if (!formData.landSurveyNumber.trim())
-      newErrors.landSurveyNumber = "Land survey number is required";
-
-    // Validate phone number
-    if (formData.phoneNumber && !/^\d{10}$/.test(formData.phoneNumber)) {
+    if (!/^\d{10}$/.test(formData.phoneNumber))
       newErrors.phoneNumber = "Phone number must be 10 digits";
-    }
-    // Validate Aadhar number (12 digits)
-    if (formData.aadharNumber && !/^\d{12}$/.test(formData.aadharNumber)) {
+    if (!/^\d{12}$/.test(formData.aadharNumber))
       newErrors.aadharNumber = "Aadhar number must be 12 digits";
-    }
+    if (!formData.landSurveyNumber.trim())
+      newErrors.landSurveyNumber = "Survey number required";
+    if (formData.landArea <= 0) newErrors.landArea = "Enter a valid land area";
+    if (formData.cultivationPeriod <= 0 || formData.cultivationPeriod > 200)
+      newErrors.cultivationPeriod =
+        "Enter valid cultivation period (1-200 days)";
+    if (!boundary) newErrors.boundary = "Please mark your field on map";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // const handleSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (validateForm()) {
-  //     onSubmit(formData);
-  //   }
-  // };
+  const handleCalculate = async () => {
+    if (!validateForm()) {
+      toast.error("Please fill all required fields correctly");
+      return;
+    }
+    setIsCalculating(true);
+    try {
+      const header = await createHeader();
+      const res = await axiosInstance.post(
+        "/emissions/calculate-tier2",
+        { ...formData, boundary },
+        header
+      );
+      if (res.data.success) {
+        setResult(res.data.data);
 
-  const handleCalculate = () => {
-    if (validateForm()) {
-      setIsCalculating(true);
-      // onCalculate(formData);
-      setTimeout(() => setIsCalculating(false), 1000);
+        const netReduction = parseFloat(
+          res.data.data.emission_reduction.net_reduction_tco2e
+        );
+        if (netReduction <= 0) {
+          toast.error(
+            "⚠️ Your current practices show no emission reduction compared to baseline.",
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(
+            `✅ Potential: ${netReduction.toFixed(2)} t CO₂e credits!`,
+            { duration: 4000 }
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("Error:", err);
+      toast.error(
+        err.response?.data?.error || "Failed to calculate emissions"
+      );
+    } finally {
+      setIsCalculating(false);
     }
   };
 
-  const handleInputChange = (
-    field: keyof Tier2FormData,
-    value: string | number
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+  const handleSubmit = async () => {
+    if (!result) {
+      toast.error("⚠️ Please calculate emissions first");
+      return;
+    }
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      const header = await createHeader();
+
+      const submissionData = {
+        ...formData,
+        boundary,
+        emissionData: result,
+      };
+
+      const res = await axiosInstance.post(
+        `/farmers/${user?.uid}/tier2`,
+        submissionData,
+        header
+      );
+
+      if (res.data.success) {
+        toast.success("✅ Project submitted successfully!");
+        navigate("/Dashboard");
+      }
+    } catch (error: any) {
+      console.error("Form submission error:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to submit project"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white shadow-lg rounded-lg">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-green-800 mb-2">
-          Tier 2: Detailed Carbon Credit Assessment
-        </h2>
-        <p className="text-gray-600">
-          This form collects detailed information for more accurate emission
-          calculations using India-specific factors for soil type, rice
-          varieties, and farming conditions.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50 pb-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-800 mb-2">
+            Tier 2 – CH₄ Emission Assessment
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-600">
+            Based on IPCC 2019 Refinement, Volume 4, Chapter 5 - Rice Cultivation
+          </p>
+        </div>
 
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-        {/* Basic Details (Similar to Tier 1, abbreviated) */}
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-blue-800 mb-4">
-            Farmer Details
+        {/* Personal Details */}
+        <div className="bg-blue-50 p-4 sm:p-6 rounded-lg mb-4 sm:mb-6">
+          <h3 className="font-semibold text-blue-800 mb-4 flex items-center text-base sm:text-lg">
+            <span className="mr-2">👤</span> Personal Details
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Farmer name, phone, etc. - abbreviated for brevity */}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-2">
                 Farmer Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                placeholder="Enter farmer name"
                 value={formData.farmerName}
-                onChange={(e) =>
-                  handleInputChange("farmerName", e.target.value)
-                }
-                className={`w-full p-3 border rounded-md ${
+                maxLength={30}
+                onChange={(e) => handleInputChange("farmerName", e.target.value)}
+                className={`w-full p-3 border rounded-lg text-base ${
                   errors.farmerName ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Enter full name"
               />
               {errors.farmerName && (
-                <p className="text-red-500 text-sm mt-1">{errors.farmerName}</p>
+                <p className="text-red-600 text-xs mt-1">{errors.farmerName}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-2">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
+                inputMode="numeric"
+                placeholder="10-digit mobile number"
                 value={formData.phoneNumber}
-                onChange={(e) =>
-                  handleInputChange("phoneNumber", e.target.value)
-                }
-                className={`w-full p-3 border rounded-md ${
+                onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                maxLength={10}
+                className={`w-full p-3 border rounded-lg text-base ${
                   errors.phoneNumber ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="10-digit mobile number"
-                maxLength={10}
               />
               {errors.phoneNumber && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.phoneNumber}
-                </p>
+                <p className="text-red-600 text-xs mt-1">{errors.phoneNumber}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-2">
                 Aadhar Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                inputMode="numeric"
+                placeholder="12-digit Aadhar"
                 value={formData.aadharNumber}
-                onChange={(e) =>
-                  handleInputChange("aadharNumber", e.target.value)
-                }
-                className={`w-full p-3 border rounded-md ${
+                onChange={(e) => handleInputChange("aadharNumber", e.target.value)}
+                maxLength={12}
+                className={`w-full p-3 border rounded-lg text-base ${
                   errors.aadharNumber ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="12-digit Aadhar number"
-                maxLength={12}
               />
               {errors.aadharNumber && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.aadharNumber}
-                </p>
+                <p className="text-red-600 text-xs mt-1">{errors.aadharNumber}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-2">
                 Land Survey Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                placeholder="Survey ID or Plot No."
                 value={formData.landSurveyNumber}
+                maxLength={12}
                 onChange={(e) =>
                   handleInputChange("landSurveyNumber", e.target.value)
                 }
-                className={`w-full p-3 border rounded-md ${
+                className={`w-full p-3 border rounded-lg text-base ${
                   errors.landSurveyNumber ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Survey/Khasra number"
               />
               {errors.landSurveyNumber && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.landSurveyNumber}
-                </p>
+                <p className="text-red-600 text-xs mt-1">{errors.landSurveyNumber}</p>
               )}
             </div>
-          </div>
-        </div>
-        <div className="bg-yellow-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-yellow-800 mb-4">
-            Farming Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Land Area (Hectares){" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0.1"
-                value={formData.landArea}
-                onChange={(e) =>
-                  handleInputChange("landArea", parseFloat(e.target.value))
-                }
-                className={`w-full p-3 border rounded-md ${
-                  errors.landArea ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="e.g., 2.5"
-              />
-              {errors.landArea && (
-                <p className="text-red-500 text-sm mt-1">{errors.landArea}</p>
-              )}
-              <p className="text-sm text-gray-500 mt-1">
-                1 Hectare = 2.47 Acres = 10,000 sq meters
-              </p>
-            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cropping Season <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.season}
-                onChange={(e) => handleInputChange("season", e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {seasonOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* location detail  */}
-
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-green-800 mb-4">
-            Location Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Village <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium mb-2">Village</label>
               <input
                 type="text"
+                placeholder="Village name"
+                maxLength={20}
                 value={formData.village}
                 onChange={(e) => handleInputChange("village", e.target.value)}
-                className={`w-full p-3 border rounded-md ${
-                  errors.village ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="Village name"
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
               />
-              {errors.village && (
-                <p className="text-red-500 text-sm mt-1">{errors.village}</p>
-              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                District <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium mb-2">District</label>
               <input
                 type="text"
-                value={formData.district}
-                onChange={(e) => handleInputChange("district", e.target.value)}
-                className={`w-full p-3 border rounded-md ${
-                  errors.district ? "border-red-500" : "border-gray-300"
-                }`}
                 placeholder="District name"
+                value={formData.district}
+                maxLength={20}
+                onChange={(e) => handleInputChange("district", e.target.value)}
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
               />
-              {errors.district && (
-                <p className="text-red-500 text-sm mt-1">{errors.district}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                State <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => handleInputChange("state", e.target.value)}
-                className={`w-full p-3 border rounded-md ${
-                  errors.state ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="State name"
-              />
-              {errors.state && (
-                <p className="text-red-500 text-sm mt-1">{errors.state}</p>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Soil and Environmental Conditions */}
-        <div className="bg-fuchsia-50 p-4 rounded-lg border border-brown-200">
-          <h3 className="text-lg font-semibold text-brown-800 mb-4">
-            Soil & Environmental Details
+        {/* Cultivation Parameters */}
+        <div className="bg-green-50 p-4 sm:p-6 rounded-lg mb-4 sm:mb-6">
+          <h3 className="font-semibold text-green-800 mb-4 flex items-center text-base sm:text-lg">
+            <span className="mr-2">🌾</span> Cultivation Parameters
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Soil Type
-              </label>
-              <select
-                value={formData.soilType}
-                onChange={(e) => handleInputChange("soilType", e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {soilTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-sm text-gray-500 mt-1">
-                Check with your local agricultural officer if unsure
-              </p>
-            </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Irrigation Water Source
-              </label>
-              <select
-                value={formData.irrigationSource}
-                onChange={(e) =>
-                  handleInputChange("irrigationSource", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {irrigationSourceOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Crop Details */}
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-green-800 mb-4">
-            Crop Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rice Variety Type
-              </label>
-              <select
-                value={formData.riceVariety}
-                onChange={(e) =>
-                  handleInputChange("riceVariety", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {riceVarietyOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Previous Crop in This Field
-              </label>
-              <select
-                value={formData.previousCrop}
-                onChange={(e) =>
-                  handleInputChange("previousCrop", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {previousCropOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expected Yield (Tonnes per Hectare)
+              <label className="block text-sm font-medium mb-2">
+                Land Area (hectares) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
-                step="0.1"
-                min="0.1"
-                value={formData.yieldExpected}
+                inputMode="decimal"
+                step="0.01"
+                placeholder="Enter area in hectares"
+                value={formData.landArea || ""}
                 onChange={(e) =>
-                  handleInputChange("yieldExpected", parseFloat(e.target.value))
+                  handleInputChange("landArea", parseFloat(e.target.value) || 0)
                 }
-                className={`w-full p-3 border rounded-md ${
-                  errors.yieldExpected ? "border-red-500" : "border-gray-300"
+                className={`w-full p-3 border rounded-lg text-base ${
+                  errors.landArea ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="e.g., 3.5"
               />
-              {errors.yieldExpected && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.yieldExpected}
-                </p>
+              {errors.landArea && (
+                <p className="text-red-600 text-xs mt-1">{errors.landArea}</p>
               )}
-              <p className="text-sm text-gray-500 mt-1">
-                Average rice yield is 2-5 tonnes/hectare
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Cultivation Period (days) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Default: 112 days"
+                value={formData.cultivationPeriod}
+                onChange={(e) =>
+                  handleInputChange(
+                    "cultivationPeriod",
+                    parseInt(e.target.value) || 112
+                  )
+                }
+                className={`w-full p-3 border rounded-lg text-base ${
+                  errors.cultivationPeriod ? "border-red-500" : "border-gray-300"
+                }`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                IPCC 2019 default: 112 days (range: 90-140)
+              </p>
+              {errors.cultivationPeriod && (
+                <p className="text-red-600 text-xs mt-1">{errors.cultivationPeriod}</p>
+              )}
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium mb-2">
+                Water Regime During Cultivation <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.waterRegimeDuringCultivation}
+                onChange={(e) =>
+                  handleInputChange("waterRegimeDuringCultivation", e.target.value)
+                }
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
+              >
+                <option value="continuously_flooded">
+                  Continuously Flooded (SFw = 1.00)
+                </option>
+                <option value="single_drainage">
+                  Single Drainage (SFw = 0.71)
+                </option>
+                <option value="multiple_drainage_awd">
+                  Multiple Drainage / AWD (SFw = 0.55)
+                </option>
+                <option value="regular_rainfed">
+                  Regular Rainfed (SFw = 0.54)
+                </option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                IPCC 2019 Table 5.12
+              </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium mb-2">
+                Pre-Season Water Regime <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.preSeasonWaterRegime}
+                onChange={(e) =>
+                  handleInputChange("preSeasonWaterRegime", e.target.value)
+                }
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
+              >
+                <option value="non_flooded_less_180">
+                  Non-flooded &lt; 180 days (SFp = 1.00)
+                </option>
+                <option value="non_flooded_more_180">
+                  Non-flooded &gt; 180 days (SFp = 0.89)
+                </option>
+                <option value="flooded_more_30">
+                  Flooded &gt; 30 days before (SFp = 2.41)
+                </option>
+                <option value="non_flooded_more_365">
+                  Non-flooded &gt; 365 days (SFp = 0.59)
+                </option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                IPCC 2019 Table 5.13
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Organic Amendments */}
+        <div className="bg-yellow-50 p-4 sm:p-6 rounded-lg mb-4 sm:mb-6">
+          <h3 className="font-semibold text-yellow-800 mb-3 text-base sm:text-lg">
+            🌱 Organic Amendments
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-600 mb-4">
+            SFo = (1 + Σ(ROAi × CFOAi))^0.59 (IPCC 2019 Table 5.14)
+          </p>
+
+          {/* Info Box */}
+          <div className="bg-blue-100 border-l-4 border-blue-500 p-3 mb-4 rounded-r">
+            <p className="text-xs sm:text-sm text-blue-800">
+              <strong>ℹ️ Note:</strong> Your current amendment represents the
+              <strong> baseline</strong>. To earn credits, <strong>reduce</strong> amendments
+              or improve water management.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Amendment Type
+              </label>
+              <select
+                value={currentAmendment.type}
+                onChange={(e) =>
+                  setCurrentAmendment({
+                    ...currentAmendment,
+                    type: e.target.value,
+                  })
+                }
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
+              >
+                <option value="none">None / Select</option>
+                <option value="straw">Rice Straw</option>
+                <option value="compost">Compost (CFOA = 0.17)</option>
+                <option value="farmyard_manure">
+                  Farmyard Manure (CFOA = 0.21)
+                </option>
+                <option value="green_manure">Green Manure (CFOA = 0.45)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Application Rate (tonnes/ha)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                placeholder="e.g., 5.0"
+                value={currentAmendment.applicationRate || ""}
+                onChange={(e) =>
+                  setCurrentAmendment({
+                    ...currentAmendment,
+                    applicationRate: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Straw: DRY weight; Others: FRESH weight
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Crop Residue Management
+              <label className="block text-sm font-medium mb-2">
+                Application Timing
               </label>
               <select
-                value={formData.cropResidueManagement}
+                value={currentAmendment.timing}
                 onChange={(e) =>
-                  handleInputChange("cropResidueManagement", e.target.value)
+                  setCurrentAmendment({
+                    ...currentAmendment,
+                    timing: e.target.value,
+                  })
                 }
-                className="w-full p-3 border border-gray-300 rounded-md"
+                className="w-full p-3 border rounded-lg border-gray-300 text-base"
+                disabled={currentAmendment.type !== "straw"}
               >
-                {cropResidueOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="short">
+                  &lt; 30 days (CFOA = 1.00)
+                </option>
+                <option value="long">
+                  &gt; 30 days (CFOA = 0.19)
+                </option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Only for straw; others use fixed CFOA
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Input Management */}
-        <div className="bg-orange-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-orange-800 mb-4">
-            Input Management
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2  gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Main Fertilizer Type Used
-              </label>
-              <select
-                value={formData.fertiliserType}
-                onChange={(e) =>
-                  handleInputChange("fertiliserType", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {fertiliserTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pesticide Usage Level
-              </label>
-              <select
-                value={formData.pesticidesUsed}
-                onChange={(e) =>
-                  handleInputChange("pesticidesUsed", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {pesticidesOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Water Management Practice
-              </label>
-              <select
-                value={formData.waterManagement}
-                onChange={(e) =>
-                  handleInputChange("waterManagement", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {waterManagementOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pre-season Water Condition
-                </label>
-                <select
-                  value={formData.preSeasonWater}
-                  onChange={(e) =>
-                    handleInputChange("preSeasonWater", e.target.value)
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-md"
-                >
-                  {preSeasonWaterOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Organic Material Added
-              </label>
-              <select
-                value={formData.organicMaterial}
-                onChange={(e) =>
-                  handleInputChange("organicMaterial", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {organicMaterialOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Labour and Machinery */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Labour & Machinery
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type of Labour Used
-              </label>
-              <select
-                value={formData.labourType}
-                onChange={(e) =>
-                  handleInputChange("labourType", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {labourTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Machinery Usage Level
-              </label>
-              <select
-                value={formData.machineUsage}
-                onChange={(e) =>
-                  handleInputChange("machineUsage", e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-md"
-              >
-                {machineUsageOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
           <button
-            type="button"
+            onClick={addOrganicAmendment}
+            className="w-full sm:w-auto bg-yellow-600 text-white py-3 px-6 rounded-lg hover:bg-yellow-700 font-medium text-base"
+          >
+            + Add Amendment
+          </button>
+
+          {/* Amendments List */}
+          {formData.organicAmendments.length > 0 && (
+            <div className="bg-white p-4 rounded-lg border mt-4">
+              <h4 className="font-medium mb-3 text-sm sm:text-base">
+                Current Organic Amendments:
+              </h4>
+              <ul className="space-y-2">
+                {formData.organicAmendments.map((amendment, index) => (
+                  <li
+                    key={index}
+                    className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-gray-50 p-3 rounded gap-2"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {index === 0 && formData.organicAmendments.length === 1 && (
+                        <span className="bg-orange-200 text-orange-800 text-xs px-2 py-1 rounded">
+                          BASELINE
+                        </span>
+                      )}
+                      <span className="text-sm sm:text-base">
+                        <strong>{amendment.type.toUpperCase()}:</strong>{" "}
+                        {amendment.applicationRate} t/ha
+                        {amendment.type === "straw" &&
+                          ` (${amendment.timing} term)`}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeAmendment(index)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium self-start sm:self-auto"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {formData.organicAmendments.length === 1 &&
+                formData.organicAmendments[0].type === "straw" &&
+                formData.organicAmendments[0].applicationRate === 5.0 && (
+                  <p className="text-xs text-gray-600 mt-3 italic">
+                    💡 Tip: This is your baseline. To earn credits, modify
+                    amendments or improve water management.
+                  </p>
+                )}
+            </div>
+          )}
+        </div>
+
+        {/* Map Selector */}
+        <div className="bg-white p-4 sm:p-6 rounded-lg mb-4 sm:mb-6">
+          <h3 className="font-semibold text-green-700 mb-3 flex items-center text-base sm:text-lg">
+            <span className="mr-2">📍</span> Locate Your Field on Map
+          </h3>
+          <MapBoundarySelector onBoundaryChange={setBoundary} />
+          {errors.boundary && (
+            <p className="text-red-600 text-sm mt-2">{errors.boundary}</p>
+          )}
+        </div>
+
+        {/* Results */}
+        {result && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg sm:text-xl text-green-700 border-b-2 border-green-500 pb-2">
+              🌿 Emission Results
+            </h3>
+
+            {/* Baseline Emissions - Mobile Optimized */}
+            <div className="bg-red-50 p-4 rounded-lg border-2 border-red-300">
+              <h4 className="font-semibold text-base sm:text-lg mb-2 text-red-700 flex items-center">
+                <span className="text-xl sm:text-2xl mr-2">📊</span>
+                Baseline Emissions
+              </h4>
+              <p className="text-xs sm:text-sm text-gray-600 mb-3 italic">
+                {result.baseline_emissions.scenario}
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm">
+                  <p className="text-xs text-gray-600">Daily EF</p>
+                  <p className="font-semibold text-red-700 text-sm sm:text-base">
+                    {result.baseline_emissions.daily_ef_kg_ha_day}
+                  </p>
+                </div>
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm">
+                  <p className="text-xs text-gray-600">Total CH₄</p>
+                  <p className="font-semibold text-red-700 text-sm sm:text-base">
+                    {result.baseline_emissions.total_ch4_emissions_kg} kg
+                  </p>
+                </div>
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm col-span-2">
+                  <p className="text-xs text-gray-600">CO₂ Equivalent</p>
+                  <p className="font-semibold text-red-700 text-lg sm:text-xl">
+                    {result.baseline_emissions.co2_equivalent_tons} t CO₂e
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Project Emissions - Mobile Optimized */}
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-300">
+              <h4 className="font-semibold text-base sm:text-lg mb-2 text-blue-700 flex items-center">
+                <span className="text-xl sm:text-2xl mr-2">💧</span>
+                Project Emissions
+              </h4>
+              <p className="text-xs sm:text-sm text-gray-600 mb-3 italic">
+                {result.project_emissions.scenario}
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm">
+                  <p className="text-xs text-gray-600">Daily EF</p>
+                  <p className="font-semibold text-blue-700 text-sm sm:text-base">
+                    {result.project_emissions.daily_ef_kg_ha_day}
+                  </p>
+                </div>
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm">
+                  <p className="text-xs text-gray-600">Total CH₄</p>
+                  <p className="font-semibold text-blue-700 text-sm sm:text-base">
+                    {result.project_emissions.total_ch4_emissions_kg} kg
+                  </p>
+                </div>
+                <div className="bg-white p-2 sm:p-3 rounded shadow-sm col-span-2">
+                  <p className="text-xs text-gray-600">CO₂ Equivalent</p>
+                  <p className="font-semibold text-blue-700 text-lg sm:text-xl">
+                    {result.project_emissions.co2_equivalent_tons} t CO₂e
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Carbon Credit Potential - Mobile Optimized */}
+            <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-6 rounded-lg text-white shadow-lg">
+              <p className="text-sm mb-2 opacity-90 text-center">
+                💰 Carbon Credit Potential
+              </p>
+              <p className="font-bold text-4xl sm:text-5xl mb-2 text-center">
+                {result.emission_reduction.carbon_credit_potential_tco2e}
+              </p>
+              <p className="text-lg sm:text-xl text-center">tonnes CO₂e</p>
+              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 mt-4 text-center">
+                <p className="text-sm mb-1">Estimated Annual Credits</p>
+                <p className="text-2xl sm:text-3xl font-bold">
+                  {result.emission_reduction.estimated_annual_carbon_credits}
+                </p>
+              </div>
+              <p className="text-center text-base sm:text-lg mt-4">
+                {result.emission_reduction.reduction_percentage}% Reduction
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-6 sticky bottom-0 bg-white p-4 rounded-t-lg shadow-lg sm:static sm:bg-transparent sm:shadow-none sm:p-0">
+          <button
             onClick={handleCalculate}
             disabled={isCalculating}
-            className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium transition duration-200"
+            className="flex-1 bg-blue-600 text-white py-3 sm:py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base transition-all"
           >
-            {isCalculating
-              ? "Calculating..."
-              : "🧮 Calculate Detailed Emissions"}
+            {isCalculating ? "Calculating..." : "🧮 Calculate Emissions"}
           </button>
 
-          <button
-            type="submit"
-            className="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 font-medium transition duration-200"
-          >
-            📋 Submit Detailed Form
-          </button>
+          {result && (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !result}
+              className="flex-1 bg-green-600 text-white py-3 sm:py-3 px-6 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base transition-all"
+            >
+              {isSubmitting ? "Submitting..." : "📋 Submit Project"}
+            </button>
+          )}
         </div>
 
-        {/* Information Box */}
-        <div className="bg-blue-100 border-l-4 border-blue-500 p-4 mt-6">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-blue-700">
-                <strong>Tier 2 Benefits:</strong> This detailed assessment
-                provides more accurate emission calculations using
-                India-specific factors. Your carbon credit potential will be
-                calculated based on your exact farming conditions, soil type,
-                and management practices.
-              </p>
-            </div>
-          </div>
-        </div>
-      </form>
+        {/* Helper Text */}
+        {!result && (
+          <p className="text-sm text-gray-500 italic mt-4 text-center">
+            💡 Calculate emissions first to see your carbon credit potential
+          </p>
+        )}
+      </div>
     </div>
   );
 };
