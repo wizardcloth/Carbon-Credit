@@ -1,4 +1,4 @@
-import { useState, type Key } from "react";
+import { useState } from "react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { createHeader } from "@/authProvider/authProvider";
