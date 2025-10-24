@@ -6,6 +6,7 @@ import { Satellite, Check, X, AlertTriangle, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
 import { createHeader } from "@/authProvider/authProvider";
+import type { Feature, Polygon } from "geojson";
 
 interface Project {
   _id: string;
@@ -60,7 +61,9 @@ const SatelliteVerification = () => {
       // Call backend API to verify via Google Earth Engine / Sentinel
       const header = await createHeader();
       const res = await axiosInstance.post(
-        `/admin/verify-satellite/${projectId}`,{},header
+        `/admin/verify-satellite/${projectId}`,
+        {},
+        header
       );
 
       if (res.data.success) {
@@ -79,10 +82,11 @@ const SatelliteVerification = () => {
     if (!selectedProject) return;
 
     try {
-
       const header = await createHeader();
       await axiosInstance.post(
-        `/admin/projects/${selectedProject._id}/approve`,{},header
+        `/admin/projects/${selectedProject._id}/approve`,
+        {},
+        header
       );
       toast.success("Project approved!");
       fetchPendingProjects();
@@ -100,12 +104,13 @@ const SatelliteVerification = () => {
     if (!reason) return;
 
     try {
-      const header = await createHeader(); 
+      const header = await createHeader();
       await axiosInstance.post(
         `/admin/projects/${selectedProject._id}/reject`,
         {
           reason,
-        },header
+        },
+        header
       );
       toast.success("Project rejected");
       fetchPendingProjects();
@@ -114,6 +119,16 @@ const SatelliteVerification = () => {
     } catch (error) {
       toast.error("Failed to reject project");
     }
+  };
+
+  const polygonCoords = selectedProject?.boundary.geometry.coordinates[0].map(
+    (coord: number[]) => [coord[1], coord[0]]
+  );
+
+  const validGeoJson: Feature<Polygon> = {
+    type: "Feature",
+    geometry: selectedProject?.boundary.geometry,
+    properties: {},
   };
 
   return (
@@ -188,15 +203,21 @@ const SatelliteVerification = () => {
                 <div className="h-[400px] rounded-lg overflow-hidden">
                   {selectedProject.boundary && (
                     <MapContainer
-                      center={[
-                        selectedProject.boundary.geometry.coordinates[0][0][1],
-                        selectedProject.boundary.geometry.coordinates[0][0][0],
-                      ]}
-                      zoom={15}
-                      className="h-full w-full"
+                      bounds={polygonCoords}
+                      style={{ height: "100%", width: "100%" }}
                     >
                       <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
-                      <GeoJSON data={selectedProject.boundary} />
+
+                      <GeoJSON
+                        key={selectedProject._id}
+                        data={validGeoJson}
+                        style={{
+                          color: "red",
+                          weight: 2,
+                          fillColor: "yellow",
+                          fillOpacity: 0.45,
+                        }}
+                      />
                     </MapContainer>
                   )}
                 </div>
