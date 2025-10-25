@@ -324,7 +324,7 @@ const VerificationCard = ({
       <p className="text-gray-600">
         Detected: <span className="font-medium">{actual}</span>
       </p>
-    </div>
+    </div>  
   </div>
 );
 

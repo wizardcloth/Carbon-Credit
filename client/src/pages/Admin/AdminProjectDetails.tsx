@@ -2,13 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Check,
-  X,
   MapPin,
   User,
   Phone,
   Droplets,
   Leaf,
+  Satellite,
 } from "lucide-react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import axiosInstance from "@/lib/axios";
@@ -60,7 +59,6 @@ const AdminProjectDetails = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (projectId) fetchProjectDetails();
@@ -81,57 +79,6 @@ const AdminProjectDetails = () => {
       navigate("/admin/projects");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!project) return;
-    const confirmed = window.confirm(
-      `Are you sure you want to approve ${project.farmerName}'s project?`
-    );
-    if (!confirmed) return;
-    setActionLoading(true);
-    try {
-      const header = await createHeader();
-      const res = await axiosInstance.post(
-        `/admin/projects/${projectId}/approve`,
-        {},
-        header
-      );
-      if (res.data.success) {
-        toast.success("Project approved successfully!");
-        navigate("/admin/approved");
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to approve project");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!project) return;
-    const reason = prompt("Enter rejection reason:");
-    if (!reason || !reason.trim()) {
-      toast.error("Rejection reason is required");
-      return;
-    }
-    setActionLoading(true);
-    try {
-      const header = await createHeader();
-      const res = await axiosInstance.post(
-        `/admin/projects/${projectId}/reject`,
-        { reason },
-        header
-      );
-      if (res.data.success) {
-        toast.success("Project rejected");
-        navigate("/admin/rejected");
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to reject project");
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -183,7 +130,7 @@ const AdminProjectDetails = () => {
       </div>
 
       {/* Project Title */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-200">
+      <div className="bg-linear-to-r from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-200">
         <h1 className="text-3xl font-bold text-green-900 mb-2">
           {project.farmerName}'s Rice Cultivation Project
         </h1>
@@ -276,19 +223,25 @@ const AdminProjectDetails = () => {
           <h3 className="font-semibold text-lg mb-4">Field Boundary</h3>
           <div className="h-[400px] rounded-lg overflow-hidden">
             {(() => {
+              // Convert GeoJSON coordinates to Leaflet LatLng format
               const ring = project.boundary.geometry.coordinates[0];
-              // center of polygon for map
-              const lats = ring.map((c: number[]) => c[1]);
-              const lngs = ring.map((c: number[]) => c[0]);
-              const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-              const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+              const polygonCoords = ring.map((coord: number[]) => [
+                coord[1],
+                coord[0],
+              ]);
+
+              // Create valid GeoJSON feature for rendering
+              const validGeoJson: any = {
+                type: "Feature",
+                geometry: project.boundary.geometry,
+                properties: {},
+              };
 
               return (
                 <MapContainer
-                  center={[centerLat, centerLng]}
-                  zoom={17}
+                  bounds={polygonCoords}
+                  style={{ height: "100%", width: "100%" }}
                   scrollWheelZoom={true}
-                  className="h-full w-full"
                 >
                   <TileLayer
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -296,7 +249,7 @@ const AdminProjectDetails = () => {
                   />
                   <GeoJSON
                     key={project._id}
-                    data={project.boundary}
+                    data={validGeoJson}
                     style={geoJsonStyle}
                     onEachFeature={onEachFeature}
                   />
@@ -309,7 +262,7 @@ const AdminProjectDetails = () => {
 
       {/* Emission Data */}
       {project.emissionData && project.emissionData.emission_reduction && (
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
+        <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
           <h3 className="font-semibold text-xl mb-4 text-green-900">
             Carbon Credit Assessment
           </h3>
@@ -340,7 +293,7 @@ const AdminProjectDetails = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl p-6 text-white text-center">
+          <div className="bg-linear-to-br from-green-600 to-emerald-700 rounded-xl p-6 text-white text-center">
             <p className="text-sm mb-2 opacity-90">
               💰 Carbon Credit Potential
             </p>
@@ -363,30 +316,21 @@ const AdminProjectDetails = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      {project.verificationStatus === "pending" && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="font-semibold text-lg mb-4">Verification Actions</h3>
-          <div className="flex gap-4">
-            <button
-              onClick={handleApprove}
-              disabled={actionLoading}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-            >
-              <Check className="h-5 w-5" />
-              Approve Project
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={actionLoading}
-              className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-            >
-              <X className="h-5 w-5" />
-              Reject Project
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Satellite Verification Button */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="font-semibold text-lg mb-4">Project Verification</h3>
+        <p className="text-gray-600 mb-4">
+          Proceed to satellite verification dashboard to verify this project using
+          Google Earth Engine and Sentinel satellite imagery.
+        </p>
+        <button
+          onClick={() => navigate("/admin/satellite")}
+          className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 font-medium transition-colors"
+        >
+          <Satellite className="h-5 w-5" />
+          Go to Satellite Verification
+        </button>
+      </div>
     </div>
   );
 };

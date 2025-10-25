@@ -1,8 +1,9 @@
 // backend/routes/admin.routes.js
 import { Router } from "express";
 import { protectRoute, Admin } from "../middleware/auth.middleware.js";
+import ee from '@google/earthengine';
+import initializeEarthEngine, { isInitialized } from '../earthEngine.js';
 import User from "../Model/User.js";
-// import ee from "@google/earthengine";
 
 const router = Router();
 
@@ -257,14 +258,6 @@ router.get("/projects/rejected", async (req, res) => {
   }
 });
 
-/**
- * GET /admin/projects/:projectId
- * Get specific project details
- */
-/**
- * GET /admin/projects/:projectId
- * Get specific project details
- */
 
 router.get("/projects/:projectId", async (req, res) => {
   try {
@@ -496,7 +489,7 @@ router.get("/analytics", async (req, res) => {
 
 /**
  * DELETE /admin/projects/:projectId
- * Delete a project
+ * Delete a project 
  */
 router.delete("/projects/:projectId", async (req, res) => {
   try {
@@ -529,10 +522,6 @@ router.delete("/projects/:projectId", async (req, res) => {
 
 
 
-/**
- * POST /admin/verify-satellite/:projectId
- * Verify project using satellite data (Google Earth Engine)
- */
 router.post("/verify-satellite/:projectId", async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -548,73 +537,158 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
       return res.status(400).json({ success: false, error: "No boundary data" });
     }
 
-    // TODO: Uncomment when Google Earth Engine is set up
-    /*
+    // Ensure Earth Engine is initialized
+    if (!isInitialized()) {
+      await initializeEarthEngine();
+    }
+
     // Extract coordinates from GeoJSON
     const coordinates = project.boundary.geometry.coordinates[0];
+
+    // Create Earth Engine polygon
     const polygon = ee.Geometry.Polygon(coordinates);
 
-    // Calculate actual area
-    const actualArea = polygon.area().divide(10000).getInfo();
+    // Calculate actual area (in hectares)
+    const actualAreaM2 = polygon.area().getInfo();
+    const actualArea = actualAreaM2 / 10000; // Convert to hectares
 
-    // Get NDVI for crop detection
-    const startDate = new Date(project.createdAt);
-    startDate.setMonth(startDate.getMonth() - 2);
-    const endDate = new Date(project.createdAt);
+    // Define time period for satellite data
+    const projectDate = new Date(project.createdAt);
+    const endDate = new Date(projectDate);
+    const startDate = new Date(projectDate);
+    startDate.setMonth(startDate.getMonth() - 2); // 2 months before project creation
 
-    const sentinel2 = ee.ImageCollection('COPERNICUS/S2_SR')
-      .filterDate(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    console.log(`Fetching satellite data from ${startDateStr} to ${endDateStr}`);
+
+    // ============================================
+    // SENTINEL-2 FOR CROP DETECTION (NDVI)
+    // ============================================
+
+    const sentinel2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+      .filterDate(startDateStr, endDateStr)
       .filterBounds(polygon)
-      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20));
+      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+      .select(['B4', 'B8']); // Red and NIR bands
 
-    const ndvi = sentinel2.map((image) => {
-      return image.normalizedDifference(['B8', 'B4']).rename('NDVI');
-    }).mean();
+    // Check if we have images
+    const s2Count = sentinel2.size().getInfo();
+    console.log(`Found ${s2Count} Sentinel-2 images`);
 
-    const ndviStats = ndvi.reduceRegion({
-      reducer: ee.Reducer.mean(),
-      geometry: polygon,
-      scale: 10,
-    }).getInfo();
+    let ndviAverage = 0;
+    let cropDetected = false;
 
-    const ndviAverage = ndviStats.NDVI || 0;
+    if (s2Count > 0) {
+      // Calculate NDVI: (NIR - RED) / (NIR + RED)
+      const ndviCollection = sentinel2.map((image) => {
+        return image.normalizedDifference(['B8', 'B4']).rename('NDVI');
+      });
 
-    // Water detection using Sentinel-1 SAR
+      const ndviMean = ndviCollection.mean();
+
+      // Get average NDVI for the polygon
+      const ndviStats = ndviMean.reduceRegion({
+        reducer: ee.Reducer.mean(),
+        geometry: polygon,
+        scale: 10,
+        maxPixels: 1e9
+      }).getInfo();
+
+      ndviAverage = ndviStats.NDVI || 0;
+
+      // NDVI > 0.4 indicates active vegetation (rice crop)
+      cropDetected = ndviAverage > 0.4;
+
+      console.log(`NDVI Average: ${ndviAverage}, Crop Detected: ${cropDetected}`);
+    }
+
+    // ============================================
+    // SENTINEL-1 SAR FOR WATER DETECTION
+    // ============================================
+
     const sentinel1 = ee.ImageCollection('COPERNICUS/S1_GRD')
-      .filterDate(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])
+      .filterDate(startDateStr, endDateStr)
       .filterBounds(polygon)
-      .filter(ee.Filter.eq('instrumentMode', 'IW'));
+      .filter(ee.Filter.eq('instrumentMode', 'IW'))
+      .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+      .select('VV');
 
-    const waterMask = sentinel1.select('VV').mean().lt(-15);
-    const waterStats = waterMask.reduceRegion({
-      reducer: ee.Reducer.mean(),
-      geometry: polygon,
-      scale: 10,
-    }).getInfo();
+    const s1Count = sentinel1.size().getInfo();
+    console.log(`Found ${s1Count} Sentinel-1 images`);
 
-    const waterDetected = waterStats.VV > 0.3;
-    */
+    let waterDetected = false;
+    let waterPercentage = 0;
 
-    // Mock verification for now (replace with actual GEE data)
+    if (s1Count > 0) {
+      // Apply speckle filtering
+      const sentinel1Filtered = sentinel1.map((image) => {
+        return image.focal_median(50, 'circle', 'meters');
+      });
+
+      const vvMean = sentinel1Filtered.mean();
+
+      // Water detection threshold: VV < -15 dB indicates water
+      const waterMask = vvMean.lt(-15);
+
+      const waterStats = waterMask.reduceRegion({
+        reducer: ee.Reducer.mean(),
+        geometry: polygon,
+        scale: 10,
+        maxPixels: 1e9
+      }).getInfo();
+
+      waterPercentage = waterStats.VV || 0;
+
+      // If >30% of pixels show water, consider it flooded
+      waterDetected = waterPercentage > 0.3;
+
+      console.log(`Water Percentage: ${waterPercentage}, Water Detected: ${waterDetected}`);
+    }
+
+    // ============================================
+    // VERIFICATION RESULTS
+    // ============================================
+
+    // Check if declared area matches actual area (within 15% tolerance)
+    const areaDifference = Math.abs(project.landArea - actualArea);
+    const areaMatchPercentage = (areaDifference / project.landArea) * 100;
+    const areaMatch = areaMatchPercentage < 15;
+
+    // Check if water regime matches
+    const declaredWaterRegime = project.waterRegimeDuringCultivation.toLowerCase();
+    const expectedWaterPresence = declaredWaterRegime.includes('flooded') || 
+                                   declaredWaterRegime.includes('irrigated');
+    const waterRegimeMatch = (expectedWaterPresence && waterDetected) || 
+                              (!expectedWaterPresence && !waterDetected);
+
     const verification = {
       declaredArea: project.landArea,
-      actualArea: project.landArea * (0.95 + Math.random() * 0.1), // Within 15% tolerance
-      areaMatch: true,
-      ndviAverage: 0.45 + Math.random() * 0.2, // 0.45-0.65 range
-      cropDetected: true,
-      waterDetected: project.waterRegimeDuringCultivation === "continuously_flooded",
-      waterRegimeMatch: true,
-      cultivationPeriod: 112,
+      actualArea: parseFloat(actualArea.toFixed(2)),
+      areaMatch: areaMatch,
+      areaMatchPercentage: parseFloat(areaMatchPercentage.toFixed(2)),
+      ndviAverage: parseFloat(ndviAverage.toFixed(3)),
+      cropDetected: cropDetected,
+      waterDetected: waterDetected,
+      waterPercentage: parseFloat((waterPercentage * 100).toFixed(2)),
+      waterRegimeMatch: waterRegimeMatch,
+      declaredWaterRegime: project.waterRegimeDuringCultivation,
+      cultivationPeriod: project.cultivationPeriod,
       lastUpdated: new Date().toISOString(),
+      sentinel2ImageCount: s2Count,
+      sentinel1ImageCount: s1Count,
+      verificationPeriod: {
+        start: startDateStr,
+        end: endDateStr
+      }
     };
-
-    verification.areaMatch = 
-      Math.abs(verification.declaredArea - verification.actualArea) / verification.declaredArea < 0.15;
 
     res.json({
       success: true,
       verification,
     });
+
   } catch (error) {
     console.error("Satellite verification error:", error);
     res.status(500).json({
@@ -624,37 +698,5 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
     });
   }
 });
-
-// Helper functions
-function generateTrendData(projects) {
-  const months = [];
-  const now = new Date();
-  
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-    
-    const monthProjects = projects.filter(p => {
-      const projectDate = new Date(p.createdAt);
-      return projectDate.getMonth() === date.getMonth() && 
-             projectDate.getFullYear() === date.getFullYear();
-    });
-
-    months.push({
-      month: monthName,
-      projects: monthProjects.length,
-      credits: monthProjects.reduce(
-        (sum, p) => sum + (p.emissionData?.emission_reduction?.carbon_credit_potential_tco2e || 0),
-        0
-      ),
-    });
-  }
-
-  return months;
-}
-
-function generateMonthlyTrend(projects) {
-  return generateTrendData(projects);
-}
 
 export default router;

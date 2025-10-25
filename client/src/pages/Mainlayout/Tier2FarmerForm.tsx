@@ -669,7 +669,7 @@ const Tier2FarmerForm = () => {
             </div>
 
             {/* Carbon Credit Potential - Mobile Optimized */}
-            <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-6 rounded-lg text-white shadow-lg">
+            <div className="bg-linear-to-br from-green-600 to-emerald-700 p-6 rounded-lg   text-white shadow-lg">
               <p className="text-sm mb-2 opacity-90 text-center">
                 💰 Carbon Credit Potential
               </p>
@@ -684,7 +684,7 @@ const Tier2FarmerForm = () => {
                 </p>
               </div>
               <p className="text-center text-base sm:text-lg mt-4">
-                {result.emission_reduction.reduction_percentage}% Reduction
+                {result.emission_reduction.reduction_percentage} Reduction
               </p>
             </div>
           </div>
