@@ -1,8 +1,14 @@
-// SatelliteVerification.tsx
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import axiosInstance from "@/lib/axios";
-import { Satellite, Check, X, AlertTriangle, RefreshCw } from "lucide-react";
+import {
+  Satellite,
+  Check,
+  X,
+  AlertTriangle,
+  RefreshCw,
+  Info,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
 import { createHeader } from "@/authProvider/authProvider";
@@ -29,6 +35,14 @@ interface SatelliteData {
   waterRegimeMatch: boolean;
   cultivationPeriod: number;
   lastUpdated: string;
+  ndwiAverage: number;
+  lswi: number;
+  evi: number;
+  confidenceScore: number;
+  detectionReason: string;
+  waterPercentage: number;
+  areaMatchPercentage: number;
+  waterRegimeReason: string;
 }
 
 const SatelliteVerification = () => {
@@ -38,6 +52,12 @@ const SatelliteVerification = () => {
     null
   );
   const [verifying, setVerifying] = useState(false);
+  const [mapKey, setMapKey] = useState(0);
+
+  useEffect(() => {
+    setSatelliteData(null);
+    setMapKey((prev) => prev + 1);
+  }, [selectedProject]);
 
   useEffect(() => {
     fetchPendingProjects();
@@ -58,7 +78,6 @@ const SatelliteVerification = () => {
   const verifySatelliteData = async (projectId: string) => {
     setVerifying(true);
     try {
-      // Call backend API to verify via Google Earth Engine / Sentinel
       const header = await createHeader();
       const res = await axiosInstance.post(
         `/admin/verify-satellite/${projectId}`,
@@ -107,9 +126,7 @@ const SatelliteVerification = () => {
       const header = await createHeader();
       await axiosInstance.post(
         `/admin/projects/${selectedProject._id}/reject`,
-        {
-          reason,
-        },
+        { reason },
         header
       );
       toast.success("Project rejected");
@@ -121,15 +138,28 @@ const SatelliteVerification = () => {
     }
   };
 
-  const polygonCoords = selectedProject?.boundary.geometry.coordinates[0].map(
-    (coord: number[]) => [coord[1], coord[0]]
-  );
-
-  const validGeoJson: Feature<Polygon> = {
-    type: "Feature",
-    geometry: selectedProject?.boundary.geometry,
-    properties: {},
+  // Helper function to interpret NDVI
+  const getNDVIInterpretation = (ndvi: number) => {
+    if (ndvi < 0.2) return "Bare soil/No vegetation";
+    if (ndvi < 0.3) return "Sparse vegetation";
+    if (ndvi < 0.4) return "Low vegetation";
+    if (ndvi < 0.6) return "Moderate vegetation";
+    if (ndvi < 0.8) return "Healthy vegetation";
+    return "Dense vegetation/Forest";
   };
+
+  const polygonCoords =
+    selectedProject?.boundary?.geometry?.coordinates?.[0]?.map(
+      (coord: number[]) => [coord[1], coord[0]]
+    );
+
+  const validGeoJson: Feature<Polygon> | null = selectedProject?.boundary
+    ? {
+        type: "Feature",
+        geometry: selectedProject.boundary.geometry,
+        properties: {},
+      }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -180,7 +210,9 @@ const SatelliteVerification = () => {
               {/* Map */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg">Field Boundary</h3>
+                  <h3 className="font-semibold text-lg">
+                    Field Boundary - {selectedProject.farmerName}
+                  </h3>
                   <button
                     onClick={() => verifySatelliteData(selectedProject._id)}
                     disabled={verifying}
@@ -201,25 +233,28 @@ const SatelliteVerification = () => {
                 </div>
 
                 <div className="h-[400px] rounded-lg overflow-hidden">
-                  {selectedProject.boundary && (
-                    <MapContainer
-                      bounds={polygonCoords}
-                      style={{ height: "100%", width: "100%" }}
-                    >
-                      <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
-
-                      <GeoJSON
-                        key={selectedProject._id}
-                        data={validGeoJson}
-                        style={{
-                          color: "red",
-                          weight: 2,
-                          fillColor: "yellow",
-                          fillOpacity: 0.45,
-                        }}
-                      />
-                    </MapContainer>
-                  )}
+                  {selectedProject.boundary &&
+                    polygonCoords &&
+                    validGeoJson && (
+                      <MapContainer
+                        key={mapKey}
+                        bounds={polygonCoords}
+                        style={{ height: "100%", width: "100%" }}
+                        scrollWheelZoom={true}
+                      >
+                        <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+                        <GeoJSON
+                          key={selectedProject._id}
+                          data={validGeoJson}
+                          style={{
+                            color: "red",
+                            weight: 2,
+                            fillColor: "yellow",
+                            fillOpacity: 0.45,
+                          }}
+                        />
+                      </MapContainer>
+                    )}
                 </div>
               </div>
 
@@ -230,34 +265,92 @@ const SatelliteVerification = () => {
                     Verification Results
                   </h3>
 
+                  {/* Detection Reason Banner */}
+                  <div
+                    className={`mb-4 p-4 rounded-lg border-2 ${
+                      satelliteData.cropDetected
+                        ? "bg-green-50 border-green-300"
+                        : "bg-yellow-50 border-yellow-300"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Info
+                        className={`h-5 w-5 mt-0.5 ${
+                          satelliteData.cropDetected
+                            ? "text-green-600"
+                            : "text-yellow-600"
+                        }`}
+                      />
+                      <div>
+                        <p
+                          className={`font-semibold ${
+                            satelliteData.cropDetected
+                              ? "text-green-900"
+                              : "text-yellow-900"
+                          }`}
+                        >
+                          {satelliteData.detectionReason}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Confidence Score: {satelliteData.confidenceScore}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 mb-6">
+                    {/* Area Verification */}
                     <VerificationCard
                       title="Area Verification"
                       declared={`${satelliteData.declaredArea} ha`}
                       actual={`${satelliteData.actualArea} ha`}
                       match={satelliteData.areaMatch}
+                      extra={`Difference: ${satelliteData.areaMatchPercentage}%`}
                     />
+
+                    {/* Rice Crop Detection */}
                     <VerificationCard
                       title="Rice Crop Detection"
                       declared="Rice"
                       actual={
-                        satelliteData.cropDetected ? "Rice Detected" : "No Rice"
+                        satelliteData.cropDetected
+                          ? `Rice Detected (${satelliteData.confidenceScore.toFixed(
+                              0
+                            )}%)`
+                          : "No Rice"
                       }
                       match={satelliteData.cropDetected}
+                      extra={`LSWI: ${satelliteData.lswi.toFixed(
+                        2
+                      )} | EVI: ${satelliteData.evi.toFixed(2)}`}
                     />
+
+                    {/* Water Regime */}
                     <VerificationCard
                       title="Water Regime"
-                      declared={selectedProject.waterRegimeDuringCultivation}
+                      declared={selectedProject.waterRegimeDuringCultivation.replace(
+                        /_/g,
+                        " "
+                      )}
                       actual={
-                        satelliteData.waterDetected ? "Water Detected" : "Dry"
+                        satelliteData.waterDetected
+                          ? `Water: ${satelliteData.waterPercentage.toFixed(
+                              1
+                            )}%`
+                          : "Dry/No Water"
                       }
                       match={satelliteData.waterRegimeMatch}
+                      extra={satelliteData.waterRegimeReason}
                     />
+
+                    {/* NDVI (Informational - not used for rice detection) */}
                     <VerificationCard
-                      title="NDVI (Crop Health)"
-                      declared="Active Growth"
+                      title="NDVI (Vegetation Index)"
+                      declared="Reference Only"
                       actual={`${satelliteData.ndviAverage.toFixed(2)}`}
-                      match={satelliteData.ndviAverage > 0.4}
+                      match={true} // Always show as info, not pass/fail
+                      extra={getNDVIInterpretation(satelliteData.ndviAverage)}
+                      isInfo={true} // New prop to style differently
                     />
                   </div>
 
@@ -298,20 +391,30 @@ const VerificationCard = ({
   declared,
   actual,
   match,
+  extra,
+  isInfo = false,
 }: {
   title: string;
   declared: string;
   actual: string;
   match: boolean;
+  extra?: string;
+  isInfo?: boolean;
 }) => (
   <div
     className={`p-4 rounded-lg border-2 ${
-      match ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"
+      isInfo
+        ? "border-blue-300 bg-blue-50" // Info style for NDVI
+        : match
+        ? "border-green-300 bg-green-50"
+        : "border-red-300 bg-red-50"
     }`}
   >
     <div className="flex items-center justify-between mb-2">
       <h4 className="font-semibold text-sm">{title}</h4>
-      {match ? (
+      {isInfo ? (
+        <Info className="h-5 w-5 text-blue-600" />
+      ) : match ? (
         <Check className="h-5 w-5 text-green-600" />
       ) : (
         <AlertTriangle className="h-5 w-5 text-red-600" />
@@ -324,7 +427,12 @@ const VerificationCard = ({
       <p className="text-gray-600">
         Detected: <span className="font-medium">{actual}</span>
       </p>
-    </div>  
+      {extra && (
+        <p className="text-gray-500 text-xs mt-2 pt-2 border-t border-gray-300">
+          {extra}
+        </p>
+      )}
+    </div>
   </div>
 );
 
