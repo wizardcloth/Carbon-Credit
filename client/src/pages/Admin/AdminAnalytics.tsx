@@ -91,7 +91,7 @@ const AdminAnalytics = () => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <Users className="h-8 w-8 opacity-80" />
           </div>
@@ -99,7 +99,7 @@ const AdminAnalytics = () => {
           <p className="text-4xl font-bold">{analytics.totalStats.totalProjects}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-linear-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <TrendingUp className="h-8 w-8 opacity-80" />
           </div>
@@ -108,7 +108,7 @@ const AdminAnalytics = () => {
           <p className="text-xs opacity-75">t CO₂e</p>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <MapPin className="h-8 w-8 opacity-80" />
           </div>
@@ -117,7 +117,7 @@ const AdminAnalytics = () => {
           <p className="text-xs opacity-75">hectares</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-linear-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <DollarSign className="h-8 w-8 opacity-80" />
           </div>
@@ -239,7 +239,7 @@ const AdminAnalytics = () => {
       </div>
 
       {/* Insights */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
+      <div className="bg-linear-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
         <h3 className="font-semibold text-lg mb-4 text-green-900">📊 Key Insights</h3>
         <ul className="space-y-2 text-gray-700">
           <li className="flex items-start gap-2">

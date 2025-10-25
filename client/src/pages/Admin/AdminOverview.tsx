@@ -188,7 +188,7 @@ const AdminOverview = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-xl shadow-lg p-8 text-white">
+      <div className="bg-linear-to-r from-green-600 to-emerald-700 rounded-xl shadow-lg p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">
@@ -501,7 +501,7 @@ const AdminOverview = () => {
       </div>
 
       {/* Performance Highlights */}
-      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
+      <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl shadow-sm p-6 border-2 border-green-200">
         <h3 className="font-semibold text-lg mb-4 text-green-900 flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
           Performance Highlights

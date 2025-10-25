@@ -105,7 +105,7 @@ const AdminRejected = () => {
             {project.rejectionReason && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-red-900 mb-1">
                       Rejection Reason:

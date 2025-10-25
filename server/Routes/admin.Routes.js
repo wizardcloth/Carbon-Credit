@@ -699,4 +699,32 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
   }
 });
 
+
+function generateTrendData(projects) {
+  const months = [];
+  const now = new Date();
+  
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+    
+    const monthProjects = projects.filter(p => {
+      const projectDate = new Date(p.createdAt);
+      return projectDate.getMonth() === date.getMonth() && 
+             projectDate.getFullYear() === date.getFullYear();
+    });
+
+    months.push({
+      month: monthName,
+      projects: monthProjects.length,
+      credits: monthProjects.reduce(
+        (sum, p) => sum + (p.emissionData?.emission_reduction?.carbon_credit_potential_tco2e || 0),
+        0
+      ),
+    });
+  }
+
+  return months;
+}
+
 export default router;

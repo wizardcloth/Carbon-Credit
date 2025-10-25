@@ -115,7 +115,7 @@ const AdminApproved = () => {
   return (
     <div className="space-y-6">
       {/* Header with Stats */}
-      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
+      <div className="bg-linear-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <CheckCircle className="h-8 w-8" />
