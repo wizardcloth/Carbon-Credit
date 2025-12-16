@@ -13,6 +13,7 @@ import Projects from "./pages/Mainlayout/Projects";
 import TokenWallet from "./pages/Mainlayout/TokenWallet";
 import Tier2FarmerForm from "./pages/Mainlayout/Tier2FarmerForm";
 import ProjectDetailsPage from "./pages/Mainlayout/ProjectDetailsPage";
+import BlockchainStats from "./pages/Admin/BlockchainStats";
 
 // Admin Pages
 import AdminDashboard from "./pages/Admin/AdminPage";
@@ -51,6 +52,7 @@ function App() {
           <Route path="satellite" element={<SatelliteVerification />} />
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="blockchain" element={<BlockchainStats />} />
         </Route>
 
         {/* Farmer Routes - Nested under Mainlayout */}

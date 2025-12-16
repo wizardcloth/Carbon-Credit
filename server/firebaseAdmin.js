@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({quiet: true});
 
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 

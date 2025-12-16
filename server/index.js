@@ -1,5 +1,5 @@
-import express from "express";
 import dotenv from "dotenv";
+import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { connectDB } from "./config/db.js";
@@ -9,9 +9,10 @@ import emissionsRoutes from "./Routes/emissions.Route.js";
 import farmersRoutes from "./Routes/farmers.Route.js";
 import adminRoute from "./Routes/admin.Routes.js";
 import initializeEarthEngine from './earthEngine.js';
+import blockchainService from './blockchain/service/blockchainService.mjs';
 
-dotenv.config();
-
+dotenv.config({quiet:true});
+console.log('🔍 CONTRACT_ADDRESS:', process.env.CONTRACT_ADDRESS);
 const app = express();
 
 // Middleware
@@ -26,6 +27,15 @@ app.use(
         preflightContinue: false,
     })
 );
+
+(async () => {
+  try {
+    await blockchainService.initialize();
+    console.log('✓ Blockchain initialized in index.js');
+  } catch (error) {
+    console.warn("⚠ Blockchain not available:", error.message);
+  }
+})();
 
 // Routes
 app.use("/api/auth", authRoutes);

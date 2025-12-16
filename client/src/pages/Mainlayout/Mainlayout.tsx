@@ -54,7 +54,7 @@ export default function ResizableHandleDemo() {
     <>
       {/* Header */}
       <div className="relative">
-        <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 flex justify-between items-center">
+        <div className="bg-linear-to-r from-green-600 to-blue-600 text-white px-4 py-2 flex justify-between items-center">
           <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
               {
@@ -129,7 +129,7 @@ export default function ResizableHandleDemo() {
           defaultSize={15}
           minSize={14}
           maxSize={15}
-          className="max-h-[100vh] min-h-[80vh] bg-slate-50 hidden md:block mr-0"
+          className="max-h-screen min-h-[80vh] bg-slate-50 hidden md:block mr-0"
         >
           <div className="flex flex-col h-full justify-between">
             <div className="flex flex-col mt-6 space-y-2 px-4">
@@ -152,7 +152,7 @@ export default function ResizableHandleDemo() {
 
         {/* Main Content */}
         <ResizablePanel defaultSize={85}>
-          <ScrollArea className="h-[100vh] m-2 rounded-md">
+          <ScrollArea className="h-screen m-2 rounded-md">
             <div className="">
               <Outlet />
             </div>

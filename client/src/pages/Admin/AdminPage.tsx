@@ -81,6 +81,13 @@ const AdminDashboard = () => {
       color: "text-emerald-600",
     },
     {
+      icon: <TrendingUp className="h-5 w-5" />,
+      label: "Blockchain Stats",
+      path: "/admin/blockchain", // Make sure this matches your router path!
+      color: "text-indigo-600",
+    },
+
+    {
       icon: <Settings className="h-5 w-5" />,
       label: "Settings",
       path: "/admin/settings",

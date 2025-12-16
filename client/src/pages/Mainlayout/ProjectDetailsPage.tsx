@@ -211,7 +211,7 @@ const ProjectDetailsPage: React.FC = () => {
       </div>
 
       {/* Project Title & Status */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border-2 border-green-200">
+      <div className="bg-linear-to-r from-green-50 to-emerald-50 p-6 rounded-lg border-2 border-green-200">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-green-900 mb-2">
@@ -384,7 +384,7 @@ const ProjectDetailsPage: React.FC = () => {
         project.emissionData.emission_reduction && (
           <>
             {/* Carbon Credit Potential - Hero Card */}
-            <Card className="bg-gradient-to-br from-green-600 to-emerald-700 text-white border-none">
+            <Card className="bg-linear-to-br from-green-600 to-emerald-700 text-white border-none">
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-green-100 text-lg mb-2">

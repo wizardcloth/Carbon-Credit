@@ -4,7 +4,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "blockchain:node": "cd blockchain && npx hardhat node",
+    "blockchain:deploy": "cd blockchain && npx hardhat run scripts/deploy.js --network localhost",
+    "blockchain:test": "cd blockchain && npx hardhat test"
   },
   "keywords": [],
   "type": "module",
@@ -13,12 +16,18 @@
   "description": "",
   "dependencies": {
     "@google/earthengine": "^1.6.13",
+    "@openzeppelin/contracts": "^5.0.1",
     "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
+    "ethers": "^6.9.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.4.0",
     "mongoose": "^8.16.1",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.27.0"
   }
 }

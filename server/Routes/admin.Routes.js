@@ -2,32 +2,32 @@
 /**
  * RICE DETECTION ALGORITHM - ACADEMIC REFERENCES
  * ================================================
- * 
+ *
  * This implementation is based on peer-reviewed research in agricultural remote sensing:
- * 
+ *
  * 1. Zhang et al. (2015) - Phenology-based rice mapping using MODIS
  *    - LSWI + 0.05 ≥ EVI condition for flooding/transplanting detection
  *    - https://pmc.ncbi.nlm.nih.gov/articles/PMC5034934/
- * 
+ *
  * 2. Xiao et al. (2005, 2006) - Paddy rice mapping in South and Southeast Asia
  *    - LSWI sensitivity to vegetation water content
  *    - Phenology-based algorithms for rice growth dynamics
  *    - https://www.ceom.ou.edu/media/docs/upload/Xiao_2006_rice_asia.pdf
- * 
+ *
  * 3. Sellaperumal et al. (2025) - Sentinel-1 SAR time series analysis
  *    - VV backscatter: -22.03 to -17.69 dB at flooding
  *    - Maximum: -16.10 to -14.20 dB at heading stage
  *    - https://pmc.ncbi.nlm.nih.gov/articles/PMC11894211/
- * 
+ *
  * 4. Boschetti et al. (2014) - Spectral indices for paddy rice
  *    - Comparative analysis of normalized difference spectral indices
  *    - https://pmc.ncbi.nlm.nih.gov/articles/PMC3930609/
- * 
+ *
  * 5. Ryu et al. (2010) - Field spectral measurements in paddy rice
  *    - LSWI decreases linearly with NDVI until NDVI ~0.8
  *    - Rice/non-rice discrimination methodology
  *    - https://www.mssanz.org.au/modsim2011/E4/ryu.pdf
- * 
+ *
  * ALGORITHM VALIDATION:
  * - NDVI range: 0.4-0.8 (validated across multiple studies)
  * - LSWI threshold: >0.2 (standard for rice water content)
@@ -42,6 +42,9 @@ import ee from "@google/earthengine";
 import initializeEarthEngine, { isInitialized } from "../earthEngine.js";
 import User from "../Model/User.js";
 
+import blockchainService from "../blockchain/service/blockchainService.mjs";
+
+
 const router = Router();
 
 // ============================================
@@ -49,23 +52,23 @@ const router = Router();
 // Research-validated thresholds
 // ============================================
 const RICE_DETECTION_CONFIG = {
-  ndvi: { min: 0.4, max: 0.8 },        // Validated: Zhang et al. (2015)
-  lswi: { min: 0.2 },                   // Validated: Xiao et al. (2005, 2006)
-  evi: { min: 0.3, max: 0.85 },        // Updated: Peak biomass consideration
-  ndwi: { min: -0.1 },                 // Water content threshold
-  ndviLswiMaxDiff: 0.3,                // Rice-specific ratio
-  
+  ndvi: { min: 0.4, max: 0.8 }, // Validated: Zhang et al. (2015)
+  lswi: { min: 0.2 }, // Validated: Xiao et al. (2005, 2006)
+  evi: { min: 0.3, max: 0.85 }, // Updated: Peak biomass consideration
+  ndwi: { min: -0.1 }, // Water content threshold
+  ndviLswiMaxDiff: 0.3, // Rice-specific ratio
+
   sar: {
-    vvFloodingThreshold: -18,          // Updated: Sellaperumal et al. (2025)
-    waterPercentageMin: 0.3
+    vvFloodingThreshold: -18, // Updated: Sellaperumal et al. (2025)
+    waterPercentageMin: 0.3,
   },
-  
+
   waterRegime: {
-    continuousFlooded: { min: 0.4 },   // 40%+ coverage required
-    intermittent: { min: 0.15, max: 0.5 },  // 15-50% range
+    continuousFlooded: { min: 0.4 }, // 40%+ coverage required
+    intermittent: { min: 0.15, max: 0.5 }, // 15-50% range
     irrigated: { lswiMin: 0.15, waterMin: 0.2 },
-    upland: { max: 0.2 }               // <20% acceptable
-  }
+    upland: { max: 0.2 }, // <20% acceptable
+  },
 };
 
 // Protect all admin routes
@@ -168,6 +171,7 @@ router.get("/users", async (req, res) => {
     });
   }
 });
+
 
 /**
  * GET /admin/users/:userId
@@ -384,41 +388,108 @@ router.get("/projects/:projectId", async (req, res) => {
 router.post("/projects/:projectId/approve", async (req, res) => {
   try {
     const { projectId } = req.params;
-
+    
     const user = await User.findOne({ "projects._id": projectId });
-
+    
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "Project not found",
+      return res.status(404).json({ 
+        success: false, 
+        error: "Project not found" 
       });
     }
 
     const project = user.projects.id(projectId);
 
     if (project.verificationStatus === "verified") {
-      return res.status(400).json({
-        success: false,
-        error: "Project is already approved",
+      return res.status(400).json({ 
+        success: false, 
+        error: "Already approved" 
       });
     }
 
+    // Update database
     project.verificationStatus = "verified";
     project.verifiedAt = new Date();
-    project.verifiedBy = req.user._id; // Admin who approved
-
+    project.verifiedBy = req.user._id;
     await user.save();
+
+    // Blockchain operations
+    let blockchainResult = { 
+      success: false, 
+      message: 'Blockchain unavailable' 
+    };
+
+    try {
+      const isAvailable = await blockchainService.isAvailable();
+      
+      if (isAvailable) {
+        // Generate wallet if needed
+        if (!project.walletAddress) {
+          const wallet = blockchainService.generateWallet();
+          project.walletAddress = wallet.address;
+          
+          await blockchainService.registerFarmer({
+            walletAddress: wallet.address,
+            aadharNumber: project.aadharNumber,
+            farmerName: project.farmerName
+          });
+        }
+
+        // Get carbon credits
+        const carbonCredits = 
+          project.emissionData?.emission_reduction?.carbon_credit_potential_tco2e || 0;
+
+        // Register project on blockchain
+        await blockchainService.registerProject({
+          projectId: project._id,
+          farmerAddress: project.walletAddress,
+          landArea: project.landArea,
+          carbonCredits: carbonCredits,
+          dataHash: JSON.stringify({
+            surveyNumber: project.landSurveyNumber,
+            verifiedAt: project.verifiedAt
+          })
+        });
+
+        // Mint tokens
+        const mintResult = await blockchainService.verifyAndMintTokens(project._id);
+
+        if (mintResult.success) {
+          project.tokenGenerated = true;
+          project.transactionHash = mintResult.transactionHash;
+          project.tokenId = project._id;
+          await user.save();
+
+          blockchainResult = {
+            success: true,
+            transactionHash: mintResult.transactionHash,
+            walletAddress: project.walletAddress,
+            tokensIssued: carbonCredits,
+            message: 'Tokens minted successfully'
+          };
+        }
+      }
+    } catch (blockchainError) {
+      console.error('Blockchain error:', blockchainError);
+      blockchainResult = {
+        success: false,
+        error: blockchainError.message,
+        message: 'Approved but blockchain failed'
+      };
+    }
 
     res.json({
       success: true,
-      message: "Project approved successfully",
+      message: "Project approved",
       project,
+      blockchain: blockchainResult
     });
+    
   } catch (error) {
-    console.error("Error approving project:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to approve project",
+    console.error("Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to approve" 
     });
   }
 });
@@ -470,6 +541,7 @@ router.post("/projects/:projectId/reject", async (req, res) => {
     });
   }
 });
+
 
 /**
  * GET /admin/analytics
@@ -569,6 +641,236 @@ router.get("/analytics", async (req, res) => {
   }
 });
 
+router.get("/blockchain/stats", async (req, res) => {
+  try {
+    const isAvailable = await blockchainService.isAvailable();
+    
+    if (!isAvailable) {
+      return res.json({ 
+        success: true, 
+        available: false,
+        message: 'Blockchain not available'
+      });
+    }
+
+    const stats = await blockchainService.getStats();
+    
+    res.json({ 
+      success: true, 
+      available: true, 
+      ...stats 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /admin/farmers/:walletAddress/balance
+ * Get farmer's token balance
+ */
+router.get("/farmers/:walletAddress/balance", async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    const isAvailable = await blockchainService.isAvailable();
+    
+    if (!isAvailable) {
+      return res.json({ 
+        success: true, 
+        available: false,
+        balance: 0 
+      });
+    }
+    
+    const result = await blockchainService.getBalance(walletAddress);
+    
+    res.json({
+      success: true,
+      available: true,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /admin/projects/:projectId/blockchain
+ * Get project blockchain information
+ */
+router.get("/projects/:projectId/blockchain", async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    
+    const isAvailable = await blockchainService.isAvailable();
+    
+    if (!isAvailable) {
+      return res.json({ 
+        success: true, 
+        available: false 
+      });
+    }
+    
+    const result = await blockchainService.getProject(projectId);
+    
+    res.json({
+      success: true,
+      available: true,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+
+
+/**
+ * GET /api/admin/farmers/balances
+ * Get all farmers' wallet balances from blockchain
+ */
+router.get('/farmers/balances', protectRoute, Admin, async (req, res) => {
+  try {
+    // Find all users with verified projects that have wallet addresses
+    const users = await User.find({ 
+      'projects.walletAddress': { $exists: true, $ne: null },
+      'projects.verificationStatus': 'verified'
+    });
+    
+    const isAvailable = await blockchainService.isAvailable();
+
+    const farmersBalances = await Promise.all(
+      users.map(async (user) => {
+        // Get first verified project with wallet
+        const verifiedProject = user.projects.find(
+          p => p.walletAddress && p.verificationStatus === 'verified'
+        );
+        
+        if (!verifiedProject) return null;
+
+        // Count total verified projects for this farmer
+        const projectCount = user.projects.filter(
+          p => p.verificationStatus === 'verified'
+        ).length;
+
+        if (!isAvailable) {
+          // Return database data if blockchain unavailable
+          return {
+            address: verifiedProject.walletAddress,
+            farmerName: verifiedProject.farmerName,
+            balance: '0.00',
+            totalCredits: '0.00',
+            projectCount,
+            blockchainAvailable: false
+          };
+        }
+
+        try {
+          // Get balance from blockchain
+          const balanceResult = await blockchainService.getBalance(
+            verifiedProject.walletAddress
+          );
+          
+          // Get farmer details from blockchain
+          const farmerResult = await blockchainService.getFarmer(
+            verifiedProject.walletAddress
+          );
+
+          return {
+            address: verifiedProject.walletAddress,
+            farmerName: verifiedProject.farmerName,
+            balance: balanceResult.balance || '0.00',
+            totalCredits: farmerResult.farmer?.totalCredits || '0.00',
+            projectCount: farmerResult.farmer?.totalProjects || projectCount,
+            blockchainAvailable: true
+          };
+        } catch (error) {
+          console.error(`Error getting balance for ${verifiedProject.walletAddress}:`, error);
+          return {
+            address: verifiedProject.walletAddress,
+            farmerName: verifiedProject.farmerName,
+            balance: '0.00',
+            totalCredits: '0.00',
+            projectCount,
+            blockchainAvailable: false
+          };
+        }
+      })
+    );
+
+    // Filter out null values
+    const filtered = farmersBalances.filter(f => f !== null);
+
+    res.json({ 
+      success: true, 
+      farmers: filtered,
+      blockchainAvailable: isAvailable
+    });
+  } catch (error) {
+    console.error('Error fetching farmers balances:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/admin/blockchain/transactions
+ * Get recent blockchain transactions
+ */
+router.get('/blockchain/transactions', protectRoute, Admin, async (req, res) => {
+  try {
+    // Get all verified projects with transaction hashes
+    const users = await User.find({ 
+      'projects.transactionHash': { $exists: true, $ne: null }
+    });
+
+    const transactions = [];
+    
+    users.forEach(user => {
+      user.projects.forEach(project => {
+        if (project.transactionHash && project.verificationStatus === 'verified') {
+          transactions.push({
+            transactionHash: project.transactionHash,
+            farmerName: project.farmerName,
+            walletAddress: project.walletAddress,
+            carbonCredits: project.emissionData?.emission_reduction?.carbon_credit_potential_tco2e || 0,
+            verifiedAt: project.verifiedAt,
+            projectId: project._id
+          });
+        }
+      });
+    });
+
+    // Sort by verification date (most recent first)
+    transactions.sort((a, b) => 
+      new Date(b.verifiedAt).getTime() - new Date(a.verifiedAt).getTime()
+    );
+
+    res.json({ 
+      success: true, 
+      transactions: transactions.slice(0, 50) // Return last 50 transactions
+    });
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 /**
  * DELETE /admin/projects/:projectId
  * Delete a project
@@ -605,7 +907,7 @@ router.delete("/projects/:projectId", async (req, res) => {
 /**
  * POST /admin/verify-satellite/:projectId
  * Verify project using satellite imagery
- * 
+ *
  * IMPROVED RICE DETECTION ALGORITHM
  * Based on academic research (see file header for references)
  */
@@ -736,8 +1038,9 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
       const criteria = {
         // NDVI: Rice should have moderate to high NDVI (0.4-0.8)
         // Too high (>0.8) might be dense trees/forest
-        ndviOk: ndviAverage >= RICE_DETECTION_CONFIG.ndvi.min && 
-                ndviAverage <= RICE_DETECTION_CONFIG.ndvi.max,
+        ndviOk:
+          ndviAverage >= RICE_DETECTION_CONFIG.ndvi.min &&
+          ndviAverage <= RICE_DETECTION_CONFIG.ndvi.max,
 
         // LSWI: Rice fields have high water content (LSWI > 0.2)
         // Trees typically have lower LSWI
@@ -745,8 +1048,9 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
 
         // IMPROVED: Enhanced NDVI-LSWI relationship check
         // Either close ratio OR early flooding signal (Xiao et al. 2005)
-        ndviLswiRatio: Math.abs(ndviAverage - lswi) < RICE_DETECTION_CONFIG.ndviLswiMaxDiff || 
-                       earlyFloodingSignal,
+        ndviLswiRatio:
+          Math.abs(ndviAverage - lswi) <
+            RICE_DETECTION_CONFIG.ndviLswiMaxDiff || earlyFloodingSignal,
 
         // NDWI: Rice should have higher water content than trees
         // Positive NDWI indicates water presence
@@ -754,8 +1058,9 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
 
         // IMPROVED: EVI upper bound increased to 0.85 for peak biomass
         // Research shows rice can exceed 0.6-0.7 at peak growth
-        eviOk: evi >= RICE_DETECTION_CONFIG.evi.min && 
-               evi <= RICE_DETECTION_CONFIG.evi.max,
+        eviOk:
+          evi >= RICE_DETECTION_CONFIG.evi.min &&
+          evi <= RICE_DETECTION_CONFIG.evi.max,
       };
 
       // Count how many criteria are met
@@ -770,21 +1075,26 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
         detectionReason = `Rice detected with ${confidenceScore.toFixed(
           0
         )}% confidence (${criteriaCount}/5 criteria met)`;
-        
+
         if (earlyFloodingSignal) {
           detectionReason += ` - Early flooding signal detected (LSWI ≥ NDVI)`;
         }
       } else if (ndviAverage > 0.7 && lswi < 0.2) {
-        detectionReason =
-          `High NDVI (${ndviAverage.toFixed(2)}) but low water content (LSWI: ${lswi.toFixed(2)}) - likely trees/forest, not rice`;
+        detectionReason = `High NDVI (${ndviAverage.toFixed(
+          2
+        )}) but low water content (LSWI: ${lswi.toFixed(
+          2
+        )}) - likely trees/forest, not rice`;
         cropDetected = false;
       } else if (ndviAverage < RICE_DETECTION_CONFIG.ndvi.min) {
-        detectionReason =
-          `Low vegetation index (NDVI: ${ndviAverage.toFixed(2)}) - likely bare soil, buildings, or dry land`;
+        detectionReason = `Low vegetation index (NDVI: ${ndviAverage.toFixed(
+          2
+        )}) - likely bare soil, buildings, or dry land`;
         cropDetected = false;
       } else if (ndwiAverage < -0.3) {
-        detectionReason =
-          `Very low water content (NDWI: ${ndwiAverage.toFixed(2)}) - not suitable for rice cultivation`;
+        detectionReason = `Very low water content (NDWI: ${ndwiAverage.toFixed(
+          2
+        )}) - not suitable for rice cultivation`;
         cropDetected = false;
       } else {
         detectionReason = `Vegetation detected but criteria insufficient for rice (confidence: ${confidenceScore.toFixed(
@@ -823,10 +1133,12 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
       });
 
       const vvMean = sentinel1Filtered.mean();
-      
+
       // IMPROVED: Changed threshold from -15 to -18 dB (critical fix)
       // Research shows rice flooding occurs at -17 to -22 dB
-      const waterMask = vvMean.lt(RICE_DETECTION_CONFIG.sar.vvFloodingThreshold);
+      const waterMask = vvMean.lt(
+        RICE_DETECTION_CONFIG.sar.vvFloodingThreshold
+      );
 
       const waterStats = waterMask
         .reduceRegion({
@@ -838,10 +1150,13 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
         .getInfo();
 
       waterPercentage = waterStats.VV || 0;
-      waterDetected = waterPercentage > RICE_DETECTION_CONFIG.sar.waterPercentageMin;
+      waterDetected =
+        waterPercentage > RICE_DETECTION_CONFIG.sar.waterPercentageMin;
 
       console.log(
-        `Water Percentage: ${(waterPercentage * 100).toFixed(1)}%, Water Detected: ${waterDetected}`
+        `Water Percentage: ${(waterPercentage * 100).toFixed(
+          1
+        )}%, Water Detected: ${waterDetected}`
       );
     }
 
@@ -862,49 +1177,62 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
 
     if (declaredWaterRegime.includes("continuously_flooded")) {
       // IMPROVED: 40%+ coverage required (more realistic than 50%)
-      waterRegimeMatch = waterDetected && 
-                         waterPercentage > RICE_DETECTION_CONFIG.waterRegime.continuousFlooded.min;
+      waterRegimeMatch =
+        waterDetected &&
+        waterPercentage >
+          RICE_DETECTION_CONFIG.waterRegime.continuousFlooded.min;
       waterRegimeReason = waterDetected
-        ? `Water detected (${(waterPercentage * 100).toFixed(1)}% coverage) ${waterRegimeMatch ? 'matches' : 'insufficient for'} continuously flooded regime`
+        ? `Water detected (${(waterPercentage * 100).toFixed(1)}% coverage) ${
+            waterRegimeMatch ? "matches" : "insufficient for"
+          } continuously flooded regime`
         : `No significant water detected - does not match continuously flooded regime`;
-        
     } else if (
       declaredWaterRegime.includes("intermittently_flooded") ||
       declaredWaterRegime.includes("rainfed")
     ) {
       // IMPROVED: 15-50% range (adjusted from 20-60%)
       waterRegimeMatch =
-        waterDetected && 
-        waterPercentage > RICE_DETECTION_CONFIG.waterRegime.intermittent.min && 
+        waterDetected &&
+        waterPercentage > RICE_DETECTION_CONFIG.waterRegime.intermittent.min &&
         waterPercentage < RICE_DETECTION_CONFIG.waterRegime.intermittent.max;
       waterRegimeReason = waterDetected
-        ? `Intermittent water detected (${(waterPercentage * 100).toFixed(1)}% coverage) ${waterRegimeMatch ? 'matches' : 'does not match'} regime`
+        ? `Intermittent water detected (${(waterPercentage * 100).toFixed(
+            1
+          )}% coverage) ${
+            waterRegimeMatch ? "matches" : "does not match"
+          } regime`
         : `Water pattern does not match intermittently flooded regime`;
-        
     } else if (declaredWaterRegime.includes("irrigated")) {
       // Irrigated fields may not always show standing water in SAR
       // Check LSWI (water in vegetation) instead
       waterRegimeMatch =
-        lswi > RICE_DETECTION_CONFIG.waterRegime.irrigated.lswiMin || 
-        (waterDetected && waterPercentage > RICE_DETECTION_CONFIG.waterRegime.irrigated.waterMin);
+        lswi > RICE_DETECTION_CONFIG.waterRegime.irrigated.lswiMin ||
+        (waterDetected &&
+          waterPercentage >
+            RICE_DETECTION_CONFIG.waterRegime.irrigated.waterMin);
       waterRegimeReason =
         lswi > RICE_DETECTION_CONFIG.waterRegime.irrigated.lswiMin
-          ? `High vegetation water content (LSWI: ${lswi.toFixed(2)}) indicates irrigation`
+          ? `High vegetation water content (LSWI: ${lswi.toFixed(
+              2
+            )}) indicates irrigation`
           : waterDetected
-          ? `Water detected (${(waterPercentage * 100).toFixed(1)}%) matches irrigated regime`
+          ? `Water detected (${(waterPercentage * 100).toFixed(
+              1
+            )}%) matches irrigated regime`
           : `Low water indicators - may not be actively irrigated`;
-          
     } else if (
       declaredWaterRegime.includes("upland") ||
       declaredWaterRegime.includes("dry")
     ) {
       // IMPROVED: More lenient threshold for dry regime
-      waterRegimeMatch = !waterDetected || 
-                         waterPercentage < RICE_DETECTION_CONFIG.waterRegime.upland.max;
+      waterRegimeMatch =
+        !waterDetected ||
+        waterPercentage < RICE_DETECTION_CONFIG.waterRegime.upland.max;
       waterRegimeReason = !waterDetected
         ? `No water detected - matches dry/upland regime`
-        : `Water detected (${(waterPercentage * 100).toFixed(1)}%) - ${waterRegimeMatch ? 'acceptable' : 'excessive'} for dry regime`;
-        
+        : `Water detected (${(waterPercentage * 100).toFixed(1)}%) - ${
+            waterRegimeMatch ? "acceptable" : "excessive"
+          } for dry regime`;
     } else {
       // Unknown regime - use basic check
       const expectedWaterPresence =
@@ -942,7 +1270,7 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
       waterPercentage: parseFloat((waterPercentage * 100).toFixed(2)),
       waterRegimeMatch: waterRegimeMatch,
       waterRegimeReason: waterRegimeReason,
-      
+
       // Metadata
       declaredWaterRegime: project.waterRegimeDuringCultivation,
       cultivationPeriod: project.cultivationPeriod,
@@ -953,10 +1281,10 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
         start: startDateStr,
         end: endDateStr,
       },
-      
+
       // IMPROVED: Add configuration used for transparency
       algorithmVersion: "1.1.0-research-validated",
-      configUsed: RICE_DETECTION_CONFIG
+      configUsed: RICE_DETECTION_CONFIG,
     };
 
     res.json({
@@ -972,6 +1300,9 @@ router.post("/verify-satellite/:projectId", async (req, res) => {
     });
   }
 });
+
+
+
 
 function generateTrendData(projects) {
   const months = [];
@@ -1011,28 +1342,3 @@ function generateMonthlyTrend(projects) {
 
 export default router;
 
-/**
- * IMPLEMENTATION NOTES:
- * =====================
- * 
- * KEY IMPROVEMENTS APPLIED:
- * 1. ✅ SAR VV threshold: -15 dB → -18 dB (critical fix based on Sellaperumal et al. 2025)
- * 2. ✅ EVI upper bound: 0.7 → 0.85 (allows peak biomass detection)
- * 3. ✅ Early flooding signal detection added (LSWI ≥ NDVI check from Xiao et al. 2005)
- * 4. ✅ Water regime thresholds refined (40%+ continuous, 15-50% intermittent)
- * 5. ✅ Configuration constants for maintainability
- * 6. ✅ Enhanced detection reasoning with criteria breakdown
- * 
- * VALIDATION CHECKLIST:
- * □ Test with known rice fields in your region
- * □ Compare results with ground truth data
- * □ Verify water detection accuracy across different regimes
- * □ Monitor false positive rate (trees, wetlands, etc.)
- * □ Adjust thresholds based on regional variations if needed
- * 
- * ALGORITHM ACCURACY:
- * - Expected improvement: 10-15% better rice field identification
- * - Reduced false positives from trees/forests
- * - Better flooding detection sensitivity
- * - More accurate water regime matching
- */

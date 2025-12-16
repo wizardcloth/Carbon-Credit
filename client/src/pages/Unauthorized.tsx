@@ -1,6 +1,6 @@
 function Unauthorized() {
   return (
-    <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-gray-100 to-gray-300">
+    <div className="flex flex-col justify-center items-center h-screen bg-linear-to-br from-gray-100 to-gray-300">
       <div className="bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center">
         <img
           src="/Stop.jpg"

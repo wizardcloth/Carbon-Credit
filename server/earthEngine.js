@@ -2,7 +2,7 @@ import os from 'os';
 import fs from 'fs';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({quiet: true});
 
 // STEP 1: Configure temp directory BEFORE importing ee
 if (process.env.VERCEL || process.env.VERCEL_ENV) {
